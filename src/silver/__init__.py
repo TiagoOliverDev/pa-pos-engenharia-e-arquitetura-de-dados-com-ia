@@ -1,0 +1,2 @@
+"""Camada Silver."""
+

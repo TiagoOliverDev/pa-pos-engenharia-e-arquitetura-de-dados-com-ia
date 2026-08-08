@@ -1,0 +1,552 @@
+Quero que você crie a estrutura inicial (a "casca") de um projeto de Engenharia de Dados para um Projeto Aplicado de pós-graduação.
+
+IMPORTANTE:
+- Não implemente ainda toda a regra de negócio.
+- Não invente endpoints ou estruturas de arquivos do TSE.
+- Não faça o pipeline completo neste momento.
+- O objetivo desta tarefa é criar uma arquitetura limpa, organizada, executável e preparada para receber as implementações das próximas sprints.
+- Antes de alterar qualquer arquivo, analise a estrutura atual do repositório e preserve o que já existir de relevante.
+- Se o projeto estiver vazio, crie a estrutura abaixo.
+- Use Python como linguagem principal.
+- O projeto deverá ser preparado para execução local via Docker.
+- Não coloque credenciais reais no código.
+- Use variáveis de ambiente e forneça um .env.example.
+
+==================================================
+1. CONTEXTO DO PROJETO
+==================================================
+
+O projeto consiste em desenvolver um MVP de Engenharia de Dados capaz de transformar dados públicos relacionados ao Fundo Especial de Financiamento de Campanha (FEFC), disponibilizados pelo Tribunal Superior Eleitoral (TSE), em informações organizadas, confiáveis e visualmente acessíveis.
+
+Fluxo conceitual:
+
+TSE
+ ↓
+Airflow
+ ↓
+S3 - Bronze
+ ↓
+Transformação / Qualidade
+ ↓
+S3 - Silver
+ ↓
+Data Warehouse / Gold
+ ↓
+Dashboard
+
+O Apache Airflow será responsável pela orquestração do pipeline.
+
+O Amazon S3 será utilizado como Data Lake.
+
+A arquitetura deverá seguir o conceito de Arquitetura Medalhão:
+
+- Bronze: dados brutos, preservando a origem;
+- Silver: dados tratados, padronizados e validados;
+- Gold: dados consolidados e preparados para consumo analítico.
+
+Para o MVP, a camada Gold poderá ser representada pelo Data Warehouse, utilizando PostgreSQL inicialmente, de forma que não seja necessário criar uma terceira camada física no S3 se isso não for necessário.
+
+==================================================
+2. OBJETIVO DESTA TAREFA
+==================================================
+
+Criar a estrutura base do projeto contendo:
+
+- Python;
+- Apache Airflow;
+- AWS S3;
+- arquitetura Medalhão;
+- PostgreSQL como Data Warehouse local;
+- Docker / Docker Compose;
+- configuração por variáveis de ambiente;
+- estrutura preparada para testes;
+- estrutura preparada para futura implementação do dashboard;
+- documentação inicial da arquitetura.
+
+Não implementar ainda:
+- download real dos dados do TSE;
+- transformação real dos arquivos;
+- regras definitivas de qualidade;
+- modelo final do Data Warehouse;
+- dashboard;
+- indicadores finais.
+
+Essas funcionalidades serão implementadas posteriormente nas Sprints.
+
+==================================================
+3. ESTRUTURA DE DIRETÓRIOS
+==================================================
+
+Crie uma estrutura semelhante a:
+
+project/
+│
+├── dags/
+│   └── fundo_eleitoral_pipeline.py
+│
+├── src/
+│   ├── ingestion/
+│   │   ├── __init__.py
+│   │   └── tse_client.py
+│   │
+│   ├── bronze/
+│   │   ├── __init__.py
+│   │   └── storage.py
+│   │
+│   ├── silver/
+│   │   ├── __init__.py
+│   │   └── transformations.py
+│   │
+│   ├── gold/
+│   │   ├── __init__.py
+│   │   └── loader.py
+│   │
+│   ├── quality/
+│   │   ├── __init__.py
+│   │   └── validations.py
+│   │
+│   ├── config/
+│   │   ├── __init__.py
+│   │   └── settings.py
+│   │
+│   └── utils/
+│       ├── __init__.py
+│       └── logging.py
+│
+├── tests/
+│   ├── __init__.py
+│   ├── ingestion/
+│   ├── silver/
+│   ├── gold/
+│   └── quality/
+│
+├── sql/
+│   └── README.md
+│
+├── dashboard/
+│   └── README.md
+│
+├── infrastructure/
+│   └── README.md
+│
+├── docker/
+│   └── README.md
+│
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+├── README.md
+└── pyproject.toml
+
+Se considerar que alguma divisão precisa ser diferente para manter boas práticas, faça a alteração, mas explique no README a decisão.
+
+==================================================
+4. AIRFLOW
+==================================================
+
+Criar uma DAG inicial chamada:
+
+fundo_eleitoral_pipeline
+
+A DAG deverá representar conceitualmente o pipeline:
+
+1. ingestão
+2. armazenamento Bronze
+3. transformação Silver
+4. validação
+5. carga Gold / Data Warehouse
+
+Neste momento, as tasks podem possuir apenas implementação mínima/mock ou funções placeholder.
+
+Não implemente ainda o processamento real.
+
+Utilize TaskFlow API ou uma abordagem moderna e limpa do Airflow.
+
+A DAG deve possuir:
+
+- schedule configurável;
+- start_date;
+- catchup=False;
+- retries configuráveis;
+- organização lógica das tasks;
+- logs;
+- tratamento básico de erros.
+
+Evite colocar toda a lógica de negócio diretamente dentro da DAG.
+
+A DAG deve apenas orquestrar funções existentes em src/.
+
+==================================================
+5. ARQUITETURA MEDALHÃO
+==================================================
+
+Estruture o projeto considerando:
+
+BRONZE
+------
+Responsável pelos dados brutos.
+
+Características:
+- preservar dados originais;
+- não modificar conteúdo da fonte;
+- armazenamento no S3;
+- organização por eleição/ano.
+
+Exemplo conceitual:
+
+s3://<bucket>/bronze/fundo_eleitoral/ano_eleicao=2024/
+
+SILVER
+------
+Responsável pelos dados tratados.
+
+Características:
+- limpeza;
+- padronização;
+- conversão de tipos;
+- tratamento de valores nulos;
+- remoção de duplicidades;
+- validações básicas.
+
+Exemplo:
+
+s3://<bucket>/silver/fundo_eleitoral/ano_eleicao=2024/
+
+GOLD
+----
+Responsável pelos dados consolidados para consumo analítico.
+
+No MVP, utilizar PostgreSQL como Data Warehouse local.
+
+A estrutura deve ficar preparada para posteriormente receber:
+
+- tabelas fato;
+- dimensões;
+- agregações;
+- indicadores.
+
+Não criar ainda o modelo final porque ele será definido após a análise dos dados reais do TSE.
+
+==================================================
+6. AWS S3
+==================================================
+
+Criar uma abstração de armazenamento para S3.
+
+Não espalhar chamadas boto3 por todo o projeto.
+
+Criar uma camada responsável por operações como:
+
+- upload;
+- download;
+- existência de objeto;
+- listagem;
+- criação/validação de paths.
+
+Utilizar boto3.
+
+Configurações devem vir de variáveis de ambiente:
+
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_REGION
+S3_BUCKET_NAME
+
+Se possível, deixar a implementação preparada para funcionar tanto com AWS real quanto com LocalStack.
+
+NÃO colocar credenciais diretamente no código.
+
+==================================================
+7. LOCALSTACK
+==================================================
+
+Preparar o ambiente local para simular o S3 usando LocalStack.
+
+O objetivo é conseguir desenvolver e testar o pipeline sem depender inicialmente da AWS real.
+
+Criar configuração para:
+
+- LocalStack;
+- S3;
+- bucket do projeto.
+
+Deixar claro no README como alternar entre:
+
+LOCALSTACK
+e
+AWS REAL
+
+==================================================
+8. POSTGRESQL / DATA WAREHOUSE
+==================================================
+
+Adicionar PostgreSQL ao Docker Compose.
+
+O PostgreSQL será utilizado inicialmente como Data Warehouse local do MVP.
+
+Preparar:
+
+- conexão via variável de ambiente;
+- usuário;
+- senha;
+- database;
+- porta;
+- healthcheck.
+
+Criar uma camada de acesso ao banco no projeto.
+
+Não criar ainda o modelo final das tabelas.
+
+Apenas deixar a infraestrutura preparada.
+
+==================================================
+9. DOCKER
+==================================================
+
+Criar Docker Compose para ambiente local contendo, no mínimo:
+
+- Airflow;
+- PostgreSQL;
+- LocalStack.
+
+Se necessário, adicionar os componentes auxiliares necessários para o Airflow funcionar corretamente.
+
+Priorizar simplicidade.
+
+O ambiente deve permitir futuramente executar:
+
+docker compose up
+
+e disponibilizar os serviços necessários para desenvolvimento.
+
+Não criar uma infraestrutura excessivamente complexa.
+
+==================================================
+10. CONFIGURAÇÃO
+==================================================
+
+Centralizar configurações utilizando variáveis de ambiente.
+
+Criar:
+
+.env.example
+
+Com variáveis semelhantes a:
+
+AIRFLOW_UID=
+
+POSTGRES_HOST=
+POSTGRES_PORT=
+POSTGRES_DB=
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=
+
+S3_BUCKET_NAME=
+
+S3_ENDPOINT_URL=
+
+Não incluir valores reais.
+
+Criar uma camada de configuração em Python para acessar essas variáveis de maneira organizada.
+
+==================================================
+11. DEPENDÊNCIAS
+==================================================
+
+Preparar requirements.txt ou pyproject.toml contendo apenas dependências necessárias para a estrutura inicial.
+
+Considerar:
+
+- apache-airflow;
+- boto3;
+- pandas;
+- sqlalchemy;
+- psycopg;
+- python-dotenv;
+- pytest.
+
+Não adicionar frameworks ou bibliotecas desnecessárias.
+
+==================================================
+12. TESTES
+==================================================
+
+Criar estrutura inicial de testes com pytest.
+
+Criar pelo menos testes básicos para:
+
+- carregamento das configurações;
+- construção dos paths do S3;
+- validações básicas;
+- módulos principais.
+
+Os testes podem ser simples inicialmente.
+
+O objetivo é deixar a arquitetura preparada para testes automatizados.
+
+==================================================
+13. QUALIDADE DE CÓDIGO
+==================================================
+
+Seguir boas práticas:
+
+- Python moderno;
+- type hints;
+- funções pequenas;
+- separação de responsabilidades;
+- docstrings quando fizer sentido;
+- tratamento de exceções;
+- logging;
+- evitar código duplicado;
+- evitar lógica de negócio dentro da DAG;
+- utilizar pathlib quando aplicável;
+- não utilizar credenciais hardcoded.
+
+Se possível, preparar o projeto para:
+
+- pytest;
+- ruff;
+- formatter/linter.
+
+Não adicionar complexidade desnecessária.
+
+==================================================
+14. README
+==================================================
+
+Criar um README.md profissional contendo:
+
+1. Nome do projeto;
+2. Descrição;
+3. Objetivo;
+4. Arquitetura;
+5. Fluxo de dados;
+6. Arquitetura Medalhão;
+7. Tecnologias;
+8. Estrutura de diretórios;
+9. Configuração do ambiente;
+10. Como executar;
+11. Como acessar o Airflow;
+12. Como acessar o PostgreSQL;
+13. Como utilizar o LocalStack;
+14. Como executar os testes;
+15. Roadmap das 3 Sprints.
+
+Incluir um diagrama textual semelhante a:
+
+TSE
+ ↓
+AIRFLOW
+ ↓
+S3 BRONZE
+ ↓
+TRANSFORMAÇÃO
+ ↓
+S3 SILVER
+ ↓
+DATA WAREHOUSE / GOLD
+ ↓
+DASHBOARD
+
+==================================================
+15. ROADMAP DO PROJETO
+==================================================
+
+Documentar no README as três Sprints definidas no projeto:
+
+SPRINT 1 — INGESTÃO E ARMAZENAMENTO
+
+P01 - Definir fonte e escopo dos dados
+P02 - Implementar ingestão
+P03 - Implementar armazenamento no S3
+P04 - Implementar particionamento
+P05 - Implementar DAG no Airflow
+
+SPRINT 2 — TRATAMENTO E DATA WAREHOUSE
+
+P06 - Implementar tratamento
+P07 - Implementar qualidade dos dados
+P08 - Definir modelo analítico
+P09 - Implementar carga no Data Warehouse
+
+SPRINT 3 — DASHBOARD E VALIDAÇÃO
+
+P10 - Definir indicadores e KPIs
+P11 - Desenvolver dashboard
+P12 - Implementar filtros
+P13 - Validar solução ponta a ponta
+P14 - Documentar solução
+
+==================================================
+16. IMPORTANTE SOBRE O MVP
+==================================================
+
+Não quero uma arquitetura exageradamente complexa.
+
+O projeto é acadêmico e possui escopo de MVP.
+
+Priorize:
+
+- simplicidade;
+- clareza;
+- organização;
+- boas práticas;
+- facilidade de execução local;
+- facilidade de evolução.
+
+Não adicionar:
+
+- Kafka;
+- Spark;
+- Kubernetes;
+- Terraform;
+- Glue;
+- Redshift;
+- EMR;
+- Lambda;
+- ECS;
+
+nesta etapa.
+
+Essas tecnologias não fazem parte do escopo atual.
+
+A arquitetura deve ser suficientemente profissional para demonstrar conceitos de Engenharia de Dados, mas sem overengineering.
+
+==================================================
+17. RESULTADO ESPERADO
+==================================================
+
+Ao finalizar esta tarefa, quero encontrar um projeto que:
+
+1. Possua estrutura de diretórios organizada;
+2. Suba localmente via Docker Compose;
+3. Possua Airflow funcionando;
+4. Possua PostgreSQL funcionando;
+5. Possua LocalStack/S3 funcionando;
+6. Possua uma DAG inicial do projeto;
+7. Possua abstração para S3;
+8. Possua configuração por .env;
+9. Possua arquitetura Bronze/Silver/Gold definida;
+10. Possua testes básicos;
+11. Possua README explicando tudo;
+12. Esteja pronto para começarmos a implementar a Sprint 1.
+
+IMPORTANTE:
+Ao terminar, não apenas diga "feito".
+
+Mostre:
+- estrutura final de diretórios;
+- principais arquivos criados;
+- como executar o projeto;
+- quais serviços foram configurados;
+- como a arquitetura Medalhão está representada;
+- o que ficou propositalmente como placeholder;
+- quais seriam os próximos passos da Sprint 1.
+
+Antes de implementar, analise o repositório atual e, caso já existam arquivos úteis, reutilize-os em vez de sobrescrevê-los sem necessidade.

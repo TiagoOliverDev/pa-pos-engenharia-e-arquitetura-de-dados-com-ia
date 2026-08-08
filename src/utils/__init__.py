@@ -1,0 +1,2 @@
+"""Utilitarios gerais."""
+

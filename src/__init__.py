@@ -1,0 +1,2 @@
+"""Pacote raiz do projeto."""
+

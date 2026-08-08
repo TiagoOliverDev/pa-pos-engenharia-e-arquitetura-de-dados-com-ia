@@ -1,0 +1,113 @@
+version: "3.9"
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file:
+    - .env
+  environment:
+    AIRFLOW_HOME: /opt/airflow
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/project/dags
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/airflow
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEB_SECRET_KEY:-dev-secret-key}
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
+    PYTHONPATH: /opt/airflow/project
+  user: "${AIRFLOW_UID:-50000}:0"
+  volumes:
+    - ./:/opt/airflow/project
+    - airflow_logs:/opt/airflow/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:3.6
+    env_file:
+      - .env
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: ${AWS_REGION}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+      PERSISTENCE: "1"
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/var/lib/localstack
+
+  localstack-init:
+    image: localstack/localstack:3.6
+    env_file:
+      - .env
+    environment:
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+    depends_on:
+      - localstack
+    entrypoint: ["/bin/bash", "-lc"]
+    command: >
+      until awslocal s3 ls >/dev/null 2>&1; do sleep 2; done;
+      awslocal s3 mb s3://$S3_BUCKET_NAME || true
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: ["/bin/bash", "-lc"]
+    command: >
+      airflow db migrate
+      && airflow users create
+      --username "$AIRFLOW_ADMIN_USER"
+      --password "$AIRFLOW_ADMIN_PASSWORD"
+      --firstname "$AIRFLOW_ADMIN_FIRST_NAME"
+      --lastname "$AIRFLOW_ADMIN_LAST_NAME"
+      --role Admin
+      --email "$AIRFLOW_ADMIN_EMAIL" || true
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      localstack-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      localstack-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+  localstack_data:
+  airflow_logs:
+
