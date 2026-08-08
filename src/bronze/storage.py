@@ -37,8 +37,14 @@ class S3PathBuilder:
     def silver_prefix(self, election_year: int) -> str:
         return self.build_prefix("silver", election_year)
 
+    def raw_bronze_prefix(self, election_year: int) -> str:
+        return f"{self.bronze_prefix(election_year)}raw/"
+
     def build_key(self, layer: str, election_year: int, filename: str) -> str:
         return f"{self.build_prefix(layer, election_year)}{filename}"
+
+    def build_raw_key(self, election_year: int, filename: str) -> str:
+        return f"{self.raw_bronze_prefix(election_year)}{filename}"
 
 
 class S3Storage:

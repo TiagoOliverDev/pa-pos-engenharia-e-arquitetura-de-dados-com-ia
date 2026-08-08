@@ -109,6 +109,6 @@ def test_ingest_to_bronze_uploads_manifest_and_archives(monkeypatch) -> None:
     assert len(manifest) == 3
     assert len(storage.uploaded_bytes) == 3
     assert len(storage.uploaded_text) == 1
-    assert storage.uploaded_bytes[0][0] == "bronze/fundo_eleitoral/ano_eleicao=2020/fefc_fp_2020.zip"
-    assert storage.uploaded_text[0][0] == "bronze/fundo_eleitoral/ano_eleicao=2020/_manifest.json"
+    assert storage.uploaded_bytes[0][0] == "bronze/fundo_eleitoral/ano_eleicao=2020/raw/fefc_fp_2020.zip"
+    assert storage.uploaded_text[0][0] == "bronze/fundo_eleitoral/ano_eleicao=2020/raw/_manifest.json"
     assert manifest[0]["download_url"].endswith("fefc_fp_2020.zip")

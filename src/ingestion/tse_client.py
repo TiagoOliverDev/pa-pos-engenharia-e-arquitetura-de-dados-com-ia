@@ -118,7 +118,7 @@ class TSEClient:
         manifest: list[dict[str, Any]] = []
         for spec in archives:
             archive = self.download_archive(spec)
-            key = storage.paths.build_key("bronze", spec.election_year, spec.filename)
+            key = storage.paths.build_raw_key(spec.election_year, spec.filename)
             storage.upload_bytes(key, archive.content, content_type="application/zip")
             manifest.append(
                 {
@@ -136,7 +136,7 @@ class TSEClient:
                 }
             )
 
-        manifest_key = storage.paths.build_key("bronze", years[0], "_manifest.json")
+        manifest_key = storage.paths.build_raw_key(years[0], "_manifest.json")
         storage.upload_text(
             manifest_key,
             content=json.dumps(manifest, ensure_ascii=False, indent=2),

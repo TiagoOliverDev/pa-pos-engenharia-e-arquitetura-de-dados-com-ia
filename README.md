@@ -53,7 +53,7 @@ para futuras tabelas fato, dimensoes e agregacoes.
 Exemplo:
 
 ```text
-s3://<bucket>/bronze/fundo_eleitoral/ano_eleicao=2024/
+s3://<bucket>/bronze/fundo_eleitoral/ano_eleicao=2024/raw/
 ```
 
 #### Silver
@@ -250,6 +250,7 @@ ou do `pyproject.toml`.
 - P01 - Definir fonte e escopo dos dados
 - P02 - Implementar ingestao
 - P03 - Implementar armazenamento no S3
+- P03 - Implementar armazenamento no S3 de forma particionada por ano de eleicao
 - P04 - Implementar particionamento
 - P05 - Implementar DAG no Airflow
 
