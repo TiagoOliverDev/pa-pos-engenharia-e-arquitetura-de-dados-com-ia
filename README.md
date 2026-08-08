@@ -48,7 +48,7 @@ para futuras tabelas fato, dimensoes e agregacoes.
 
 - preserva os dados brutos
 - nao altera a origem
-- organiza por ano de eleicao
+- organiza por ano de eleicao, com particionamento explicito em `ano_eleicao`
 
 Exemplo:
 

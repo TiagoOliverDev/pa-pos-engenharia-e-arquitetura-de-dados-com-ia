@@ -9,3 +9,6 @@ def test_bronze_prefix_building() -> None:
     assert builder.build_raw_key(2024, "fefc_fp_2024.zip") == (
         "bronze/fundo_eleitoral/ano_eleicao=2024/raw/fefc_fp_2024.zip"
     )
+    assert builder.build_partitioned_prefix("bronze", {"ano_eleicao": 2024}) == (
+        "bronze/fundo_eleitoral/ano_eleicao=2024/"
+    )

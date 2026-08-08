@@ -29,7 +29,11 @@ class S3PathBuilder:
     dataset_name: str = "fundo_eleitoral"
 
     def build_prefix(self, layer: str, election_year: int) -> str:
-        return f"{layer}/{self.dataset_name}/ano_eleicao={election_year}/"
+        return self.build_partitioned_prefix(layer, {"ano_eleicao": election_year})
+
+    def build_partitioned_prefix(self, layer: str, partitions: dict[str, Any]) -> str:
+        partition_bits = "/".join(f"{name}={value}" for name, value in partitions.items())
+        return f"{layer}/{self.dataset_name}/{partition_bits}/"
 
     def bronze_prefix(self, election_year: int) -> str:
         return self.build_prefix("bronze", election_year)
@@ -38,7 +42,7 @@ class S3PathBuilder:
         return self.build_prefix("silver", election_year)
 
     def raw_bronze_prefix(self, election_year: int) -> str:
-        return f"{self.bronze_prefix(election_year)}raw/"
+        return f"{self.build_partitioned_prefix('bronze', {'ano_eleicao': election_year})}raw/"
 
     def build_key(self, layer: str, election_year: int, filename: str) -> str:
         return f"{self.build_prefix(layer, election_year)}{filename}"
