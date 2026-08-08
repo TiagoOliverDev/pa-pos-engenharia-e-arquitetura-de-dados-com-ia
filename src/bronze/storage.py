@@ -6,8 +6,14 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 
-import boto3
-from botocore.exceptions import ClientError
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+except ImportError:  # pragma: no cover - fallback for minimal local environments
+    boto3 = None
+
+    class ClientError(Exception):
+        """Fallback client error when boto3 is unavailable."""
 
 from src.config import Settings, get_settings
 from src.utils.logging import get_logger
@@ -40,15 +46,17 @@ class S3Storage:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
-        client_kwargs: dict[str, Any] = {"region_name": self._settings.aws_region}
-        if self._settings.s3_endpoint_url:
-            client_kwargs["endpoint_url"] = self._settings.s3_endpoint_url
-        self._client = boto3.client(
-            "s3",
-            aws_access_key_id=self._settings.aws_access_key_id,
-            aws_secret_access_key=self._settings.aws_secret_access_key,
-            **client_kwargs,
-        )
+        self._client = None
+        if boto3 is not None:
+            client_kwargs: dict[str, Any] = {"region_name": self._settings.aws_region}
+            if self._settings.s3_endpoint_url:
+                client_kwargs["endpoint_url"] = self._settings.s3_endpoint_url
+            self._client = boto3.client(
+                "s3",
+                aws_access_key_id=self._settings.aws_access_key_id,
+                aws_secret_access_key=self._settings.aws_secret_access_key,
+                **client_kwargs,
+            )
         self._paths = S3PathBuilder(bucket_name=self._settings.s3_bucket_name)
 
     @property
@@ -59,6 +67,13 @@ class S3Storage:
     def paths(self) -> S3PathBuilder:
         return self._paths
 
+    def _require_client(self) -> Any:
+        if self._client is None:
+            raise RuntimeError(
+                "boto3 nao esta instalado neste ambiente; a camada S3 exige a dependencia."
+            )
+        return self._client
+
     def ensure_bucket(self) -> None:
         """Create the bucket if needed.
 
@@ -66,7 +81,7 @@ class S3Storage:
         """
 
         try:
-            self._client.head_bucket(Bucket=self.bucket_name)
+            self._require_client().head_bucket(Bucket=self.bucket_name)
             return
         except ClientError:
             LOGGER.info("Bucket %s nao existe ainda; sera criado.", self.bucket_name)
@@ -76,17 +91,17 @@ class S3Storage:
             create_kwargs["CreateBucketConfiguration"] = {
                 "LocationConstraint": self._settings.aws_region
             }
-        self._client.create_bucket(**create_kwargs)
+        self._require_client().create_bucket(**create_kwargs)
 
     def object_exists(self, key: str) -> bool:
         try:
-            self._client.head_object(Bucket=self.bucket_name, Key=key)
+            self._require_client().head_object(Bucket=self.bucket_name, Key=key)
             return True
         except ClientError:
             return False
 
     def upload_bytes(self, key: str, payload: bytes, content_type: str = "application/octet-stream") -> None:
-        self._client.put_object(
+        self._require_client().put_object(
             Bucket=self.bucket_name,
             Key=key,
             Body=BytesIO(payload).getvalue(),
@@ -97,10 +112,9 @@ class S3Storage:
         self.upload_bytes(key, content.encode("utf-8"), content_type=content_type)
 
     def download_bytes(self, key: str) -> bytes:
-        response = self._client.get_object(Bucket=self.bucket_name, Key=key)
+        response = self._require_client().get_object(Bucket=self.bucket_name, Key=key)
         return response["Body"].read()
 
     def list_objects(self, prefix: str = "") -> list[str]:
-        response = self._client.list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)
+        response = self._require_client().list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)
         return [item["Key"] for item in response.get("Contents", [])]
-

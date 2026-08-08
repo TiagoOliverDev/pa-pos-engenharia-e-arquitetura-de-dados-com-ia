@@ -225,6 +225,7 @@ ou do `pyproject.toml`.
 - estrutura inicial de diretorios
 - definicao da fonte oficial do FEFC
 - escopo do MVP limitado as tres ultimas eleicoes: 2020, 2022 e 2024
+- ingestao oficial dos arquivos ZIP do TSE para Bronze
 - configuracao por variaveis de ambiente
 - DAG inicial do Airflow
 - abstracao de S3
@@ -236,7 +237,6 @@ ou do `pyproject.toml`.
 
 ## O que Ficou Como Placeholder
 
-- download real dos dados do TSE
 - transformacoes reais de Silver
 - regras definitivas de qualidade
 - modelo final do Data Warehouse
@@ -280,8 +280,8 @@ Para manter o MVP simples e executavel:
 
 ## Proximos Passos da Sprint 1
 
-1. implementar a extracao efetiva para os anos 2020, 2022 e 2024
-2. gravar os arquivos brutos na camada Bronze
-3. definir o particionamento do lake
-4. preparar o download controlado por configuracao
-5. substituir os placeholders da DAG pela execucao real
+1. padronizar um registro de manifest mais completo para cada execucao
+2. definir o particionamento final do lake por ano de eleicao
+3. preparar a separacao entre arquivos brutos e arquivos derivados
+4. substituir os placeholders da DAG pelas etapas efetivas de tratamento
+5. conectar os proximos passos da Sprint 1 ao arquivo bruto ja ingerido

@@ -8,9 +8,13 @@ from functools import lru_cache
 from pathlib import Path
 import os
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional dependency for local development
+    load_dotenv = None
 
-load_dotenv()
+if load_dotenv is not None:
+    load_dotenv()
 
 
 def _as_int(value: str | None, default: int) -> int:

@@ -5,9 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import pandas as pd
-from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Engine
+try:
+    import pandas as pd
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import Engine
+except ImportError:  # pragma: no cover - fallback for minimal local environments
+    pd = None
+    create_engine = None
+    text = None
+    Engine = Any
 
 from src.config import Settings, get_settings
 from src.utils.logging import get_logger
@@ -24,13 +30,19 @@ class PostgresWarehouse:
     def __post_init__(self) -> None:
         if self.settings is None:
             self.settings = get_settings()
-        self._engine: Engine = create_engine(
-            self.settings.postgres_sqlalchemy_url,
-            pool_pre_ping=True,
-        )
+        self._engine: Engine | None = None
+        if create_engine is not None:
+            self._engine = create_engine(
+                self.settings.postgres_sqlalchemy_url,
+                pool_pre_ping=True,
+            )
 
     @property
     def engine(self) -> Engine:
+        if self._engine is None:
+            raise RuntimeError(
+                "SQLAlchemy nao esta instalado neste ambiente; a camada Gold exige a dependencia."
+            )
         return self._engine
 
     def healthcheck(self) -> bool:

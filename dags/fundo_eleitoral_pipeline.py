@@ -38,50 +38,37 @@ def fundo_eleitoral_pipeline() -> None:
     @task
     def ingest() -> dict[str, Any]:
         client = TSEClient()
-        election_years = client.list_election_years()
-        contexts = [client.build_context(year) for year in election_years]
-        records = [
-            {
-                "source_name": context.metadata["source_name"],
-                "source_url": context.metadata["source_url"],
-                "election_year": context.election_year,
-            }
-            for context in contexts
-        ]
+        storage = S3Storage()
+        manifest = client.ingest_to_bronze(storage)
         LOGGER.info(
-            "Escopo FEFC definido com os anos %s e fonte %s.",
-            election_years,
-            client.scope.source_url,
+            "Escopo FEFC definido com os anos %s e fonte oficial do TSE.",
+            client.list_election_years(),
         )
         return {
             "scope": {
                 "source_name": client.scope.source_name,
                 "source_url": client.scope.source_url,
-                "election_years": list(election_years),
+                "election_years": list(client.list_election_years()),
             },
-            "contexts": [
-                {
-                    "election_year": context.election_year,
-                    "metadata": context.metadata,
-                }
-                for context in contexts
-            ],
-            "records": records,
+            "manifest": manifest,
         }
 
     @task
     def store_bronze(payload: dict[str, Any]) -> dict[str, Any]:
         storage = S3Storage()
-        bronze_prefixes: list[str] = []
-        for context in payload["contexts"]:
-            prefix = storage.paths.bronze_prefix(context["election_year"])
-            bronze_prefixes.append(prefix)
+        bronze_prefixes = sorted(
+            {
+                storage.paths.bronze_prefix(item["election_year"])
+                for item in payload["manifest"]
+            }
+        )
+        for prefix in bronze_prefixes:
             LOGGER.info("Camada Bronze preparada em %s.", prefix)
         return {**payload, "bronze_prefixes": bronze_prefixes}
 
     @task
     def transform_silver(payload: dict[str, Any]) -> dict[str, Any]:
-        silver_records = normalize_records(payload["records"])
+        silver_records = normalize_records(payload["manifest"])
         LOGGER.info("Camada Silver preparada com %s registros.", len(silver_records))
         return {**payload, "silver_records": silver_records}
 
