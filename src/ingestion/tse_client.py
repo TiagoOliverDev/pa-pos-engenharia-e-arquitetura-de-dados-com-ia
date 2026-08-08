@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.config import Settings, get_settings
+from src.ingestion.scope import FEFCSourceScope
 from src.utils.logging import get_logger
 
 LOGGER = get_logger(__name__)
@@ -29,18 +30,37 @@ class TSEClient:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
+        self._scope = FEFCSourceScope()
 
     @property
     def settings(self) -> Settings:
         return self._settings
 
+    @property
+    def scope(self) -> FEFCSourceScope:
+        return self._scope
+
+    def list_election_years(self) -> tuple[int, ...]:
+        """Return the fixed MVP scope for the last three elections."""
+
+        return self.scope.election_years
+
     def build_context(self, election_year: int | None = None) -> IngestionContext:
         """Build the run context without touching the real source."""
 
         year = election_year or self.settings.default_election_year
+        if not self.scope.contains(year):
+            raise ValueError(
+                f"Ano eleitoral fora do escopo do MVP: {year}. "
+                f"Use um dos anos {self.scope.election_years}."
+            )
         return IngestionContext(
             election_year=year,
-            metadata={"app_env": self.settings.app_env},
+            metadata={
+                "app_env": self.settings.app_env,
+                "source_name": self.scope.source_name,
+                "source_url": self.scope.source_url,
+            },
         )
 
     def fetch_records(self, context: IngestionContext) -> list[dict[str, Any]]:
@@ -51,4 +71,3 @@ class TSEClient:
             context.election_year,
         )
         return []
-

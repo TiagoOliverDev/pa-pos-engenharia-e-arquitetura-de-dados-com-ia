@@ -223,6 +223,8 @@ ou do `pyproject.toml`.
 ## O que Esta Implementado Agora
 
 - estrutura inicial de diretorios
+- definicao da fonte oficial do FEFC
+- escopo do MVP limitado as tres ultimas eleicoes: 2020, 2022 e 2024
 - configuracao por variaveis de ambiente
 - DAG inicial do Airflow
 - abstracao de S3
@@ -278,9 +280,8 @@ Para manter o MVP simples e executavel:
 
 ## Proximos Passos da Sprint 1
 
-1. definir a fonte real e o escopo dos dados do TSE
-2. implementar a extracao efetiva
-3. gravar os arquivos brutos na camada Bronze
-4. definir o particionamento do lake
+1. implementar a extracao efetiva para os anos 2020, 2022 e 2024
+2. gravar os arquivos brutos na camada Bronze
+3. definir o particionamento do lake
+4. preparar o download controlado por configuracao
 5. substituir os placeholders da DAG pela execucao real
-

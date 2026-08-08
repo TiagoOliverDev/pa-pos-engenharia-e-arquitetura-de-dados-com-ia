@@ -38,29 +38,46 @@ def fundo_eleitoral_pipeline() -> None:
     @task
     def ingest() -> dict[str, Any]:
         client = TSEClient()
-        context = client.build_context()
-        records = client.fetch_records(context)
-        LOGGER.info("Ingestao placeholder concluida com %s registros.", len(records))
-        return {"context": {"election_year": context.election_year}, "records": records}
+        election_years = client.list_election_years()
+        contexts = [client.build_context(year) for year in election_years]
+        records = [
+            {
+                "source_name": context.metadata["source_name"],
+                "source_url": context.metadata["source_url"],
+                "election_year": context.election_year,
+            }
+            for context in contexts
+        ]
+        LOGGER.info(
+            "Escopo FEFC definido com os anos %s e fonte %s.",
+            election_years,
+            client.scope.source_url,
+        )
+        return {
+            "scope": {
+                "source_name": client.scope.source_name,
+                "source_url": client.scope.source_url,
+                "election_years": list(election_years),
+            },
+            "contexts": [
+                {
+                    "election_year": context.election_year,
+                    "metadata": context.metadata,
+                }
+                for context in contexts
+            ],
+            "records": records,
+        }
 
     @task
     def store_bronze(payload: dict[str, Any]) -> dict[str, Any]:
         storage = S3Storage()
-        context = payload["context"]
-        records = payload["records"]
-        prefix = storage.paths.bronze_prefix(context["election_year"])
-        LOGGER.info("Camada Bronze preparada em %s.", prefix)
-        if records:
-            storage.ensure_bucket()
-            storage.upload_text(
-                storage.paths.build_key(
-                    "bronze",
-                    context["election_year"],
-                    "placeholder.json",
-                ),
-                content="[]",
-            )
-        return {"context": context, "records": records, "bronze_prefix": prefix}
+        bronze_prefixes: list[str] = []
+        for context in payload["contexts"]:
+            prefix = storage.paths.bronze_prefix(context["election_year"])
+            bronze_prefixes.append(prefix)
+            LOGGER.info("Camada Bronze preparada em %s.", prefix)
+        return {**payload, "bronze_prefixes": bronze_prefixes}
 
     @task
     def transform_silver(payload: dict[str, Any]) -> dict[str, Any]:
