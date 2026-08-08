@@ -73,7 +73,7 @@ class Settings:
             airflow_admin_email=os.getenv("AIRFLOW_ADMIN_EMAIL", "airflow@example.com"),
             airflow_admin_first_name=os.getenv("AIRFLOW_ADMIN_FIRST_NAME", "Airflow"),
             airflow_admin_last_name=os.getenv("AIRFLOW_ADMIN_LAST_NAME", "Admin"),
-            airflow_schedule=os.getenv("AIRFLOW_DAG_SCHEDULE", "@daily"),
+            airflow_schedule=os.getenv("AIRFLOW_DAG_SCHEDULE", "0 12 * * *"),
             airflow_retries=_as_int(os.getenv("AIRFLOW_RETRIES"), 1),
             airflow_retry_delay_seconds=_as_int(os.getenv("AIRFLOW_RETRY_DELAY_SECONDS"), 300),
             airflow_start_date=_as_date(os.getenv("AIRFLOW_START_DATE"), date(2024, 1, 1)),

@@ -226,6 +226,7 @@ ou do `pyproject.toml`.
 - definicao da fonte oficial do FEFC
 - escopo do MVP limitado as tres ultimas eleicoes: 2020, 2022 e 2024
 - ingestao oficial dos arquivos ZIP do TSE para Bronze
+- DAG do Airflow agendada diariamente as 12:00
 - configuracao por variaveis de ambiente
 - DAG inicial do Airflow
 - abstracao de S3
