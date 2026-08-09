@@ -173,7 +173,7 @@ Isso inicia:
 
 ## Como Acessar o Airflow
 
-- URL: http://localhost:8080
+- URL: http://localhost:8686
 - usuario padrao: `airflow`
 - senha padrao: `airflow`
 
@@ -187,7 +187,7 @@ O Compose sobe um PostgreSQL local com dois propositos:
 Conexao padrao:
 
 - host: `localhost`
-- porta: `5432`
+- porta: `5438`
 - usuario: definido em `.env`
 - senha: definida em `.env`
 
@@ -210,6 +210,32 @@ Se quiser alternar para AWS real:
 1. remova `S3_ENDPOINT_URL`
 2. aponte as credenciais para a AWS de verdade
 3. mantenha a mesma camada de abstracao em `src/bronze/storage.py`
+
+## Como Validar os Dados no LocalStack
+
+Depois de rodar a DAG, voce pode confirmar que os arquivos caíram no S3 local com
+o comando abaixo:
+
+```bash
+aws s3 ls s3://fefc-data-lake --recursive --endpoint-url http://localhost:4566
+```
+
+Outras formas praticas de validar:
+
+```bash
+aws s3 ls s3://fefc-data-lake/bronze/fundo_eleitoral/ano_eleicao=2024/raw/ --endpoint-url http://localhost:4566
+```
+
+```bash
+aws s3 cp s3://fefc-data-lake/bronze/fundo_eleitoral/ano_eleicao=2024/raw/fefc_fp_2024.zip ./fefc_fp_2024.zip --endpoint-url http://localhost:4566
+```
+
+```bash
+aws s3api head-object --bucket fefc-data-lake --key bronze/fundo_eleitoral/ano_eleicao=2024/raw/fefc_fp_2024.zip --endpoint-url http://localhost:4566
+```
+
+Se preferir, também vale conferir os logs da task `ingest` no Airflow, que mostram
+os anos processados e o total de arquivos enviados para a Bronze.
 
 ## Como Executar os Testes
 
