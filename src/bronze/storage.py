@@ -97,7 +97,7 @@ class S3Storage:
             LOGGER.info("Bucket %s nao existe ainda; sera criado.", self.bucket_name)
 
         create_kwargs: dict[str, Any] = {"Bucket": self.bucket_name}
-        if self._settings.s3_endpoint_url is None and self._settings.aws_region != "us-east-1":
+        if self._settings.aws_region != "us-east-1":
             create_kwargs["CreateBucketConfiguration"] = {
                 "LocationConstraint": self._settings.aws_region
             }
