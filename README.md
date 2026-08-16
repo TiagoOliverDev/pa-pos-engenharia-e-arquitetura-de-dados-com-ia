@@ -90,8 +90,90 @@ s3://<bucket>/silver/fundo_eleitoral/ano_eleicao=2024/tratado/
 #### Gold
 
 - camada de consumo analitico
-- no MVP, representada por PostgreSQL local
-- preparada para modelo dimensional posterior
+- PostgreSQL 16 local no banco `fefc_dw`
+- modelo estrela com dimensoes compartilhadas e quatro tabelas fato
+- fatos particionados por `ano_eleicao` em 2020, 2022 e 2024
+- views analiticas prontas para consultas sem repetir todos os joins
+
+### Modelo Analitico
+
+As quatro tabelas fato preservam o grao de cada CSV:
+
+| Tabela pai | Grao |
+|---|---|
+| `dw.fato_fefc_genero` | eleicao, partido e genero |
+| `dw.fato_fefc_cor_raca` | eleicao, partido, genero e cor/raca |
+| `dw.fato_fp_genero` | eleicao, partido, localidade e genero |
+| `dw.fato_fp_cor_raca` | eleicao, partido, localidade, genero e cor/raca |
+
+Cada fato possui particoes fisicas com sufixos `_2020`, `_2022` e `_2024`.
+O particionamento e somente por ano; o tipo de CSV define o grao da tabela fato,
+mas nao e uma chave adicional de particionamento.
+
+Dimensoes:
+
+- `dw.dim_eleicao`
+- `dw.dim_partido`
+- `dw.dim_genero`
+- `dw.dim_cor_raca`
+- `dw.dim_localidade`
+
+Views para consumo:
+
+- `dw.vw_fefc_genero`
+- `dw.vw_fefc_cor_raca`
+- `dw.vw_fp_genero`
+- `dw.vw_fp_cor_raca`
+
+A documentacao completa esta em
+[`docs/modelo_analitico.md`](docs/modelo_analitico.md). O diagrama visual esta em
+[`docs/diagrams/data_warehouse_erd.md`](docs/diagrams/data_warehouse_erd.md).
+
+### PostgreSQL Local
+
+O servico `postgres` cria automaticamente o banco `fefc_dw`. Dentro do Docker,
+ele e acessado por `postgres:5432`; no Windows, por `localhost:5438`.
+
+```text
+host: localhost
+port: 5438
+database: fefc_dw
+user: fefc_user
+password: fefc_password
+schema: dw
+```
+
+### Migrations Manuais
+
+Os arquivos SQL versionados ficam em `migrations/`. Para aplicar todas as
+migrations pendentes:
+
+```bash
+docker compose run --rm warehouse-migrations
+```
+
+Para consultar o status:
+
+```bash
+docker compose run --rm warehouse-migrations python -m src.gold.migrations status
+```
+
+Tambem e possivel executar pelo container do Airflow:
+
+```bash
+docker compose exec airflow-webserver python -m src.gold.migrations up
+docker compose exec airflow-webserver python -m src.gold.migrations status
+```
+
+O executor registra versao e checksum em `public.dw_schema_migrations`, rejeita
+arquivos alterados depois da aplicacao e usa lock transacional para impedir duas
+execucoes simultaneas.
+
+Para listar as particoes criadas:
+
+```bash
+docker compose exec postgres psql -U fefc_user -d fefc_dw -c "SELECT relid::regclass, level FROM pg_partition_tree('dw.fato_fp_genero');"
+```
 
 ## Fluxo de Dados
 

@@ -75,6 +75,11 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  warehouse-migrations:
+    <<: *airflow-common
+    command: python -m src.gold.migrations up
+    profiles: ["tools"]
+
 volumes:
   postgres_data:
   localstack_data:
