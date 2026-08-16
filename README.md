@@ -154,14 +154,36 @@ O resultado de cada arquivo fica registrado em `dw.carga_arquivo`.
 O servico `postgres` cria automaticamente o banco `fefc_dw`. Dentro do Docker,
 ele e acessado por `postgres:5432`; no Windows, por `localhost:5438`.
 
+| Configuracao | Acesso pelo Windows | Acesso entre containers |
+|---|---|---|
+| Host | `localhost` | `postgres` |
+| Porta | `5438` | `5432` |
+| Banco do DW | `fefc_dw` | `fefc_dw` |
+| Schema analitico | `dw` | `dw` |
+| Usuario | `fefc_user` | `fefc_user` |
+| Senha | `fefc_password` | `fefc_password` |
+
+URL de conexao pelo Windows:
+
 ```text
-host: localhost
-port: 5438
-database: fefc_dw
-user: fefc_user
-password: fefc_password
-schema: dw
+postgresql://fefc_user:fefc_password@localhost:5438/fefc_dw
 ```
+
+Conexao pelo `psql` instalado no Windows:
+
+```powershell
+psql -h localhost -p 5438 -U fefc_user -d fefc_dw
+```
+
+Conexao usando o cliente que ja existe no container PostgreSQL:
+
+```bash
+docker compose exec postgres psql -U fefc_user -d fefc_dw
+```
+
+A mesma instancia tambem possui o banco `airflow`, usado apenas pelos metadados
+do Airflow. As credenciais locais ficam no arquivo `.env`; altere os valores
+padrao antes de utilizar essa configuracao fora do ambiente de desenvolvimento.
 
 ### Migrations Manuais
 
