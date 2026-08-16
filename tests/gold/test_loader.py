@@ -10,5 +10,6 @@ def test_warehouse_builds_url(monkeypatch) -> None:
 
     warehouse = PostgresWarehouse()
 
-    assert warehouse.settings.postgres_sqlalchemy_url == "postgresql+psycopg://user:pass@localhost:5432/dw"
-
+    assert warehouse.settings.postgres_sqlalchemy_url == (
+        "postgresql+psycopg2://user:pass@localhost:5432/dw"
+    )

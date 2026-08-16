@@ -12,6 +12,10 @@ def test_bronze_prefix_building() -> None:
     assert builder.build_raw_key(2024, "fefc_fp_2024.zip") == (
         "bronze/fundo_eleitoral/ano_eleicao=2024/raw/fefc_fp_2024.zip"
     )
+    assert builder.silver_treated_prefix(2024) == "silver/fundo_eleitoral/ano_eleicao=2024/tratado/"
+    assert builder.build_treated_silver_key(2024, "fefc_fp_2024_tratado.csv") == (
+        "silver/fundo_eleitoral/ano_eleicao=2024/tratado/fefc_fp_2024_tratado.csv"
+    )
     assert builder.build_partitioned_prefix("bronze", {"ano_eleicao": 2024}) == (
         "bronze/fundo_eleitoral/ano_eleicao=2024/"
     )
@@ -22,7 +26,10 @@ def test_ensure_bucket_sends_location_constraint_when_region_is_specific(monkeyp
 
     class _FakeClient:
         def head_bucket(self, Bucket):
-            raise ClientError("not found")
+            raise ClientError(
+                {"Error": {"Code": "404", "Message": "Not Found"}},
+                "HeadBucket",
+            )
 
         def create_bucket(self, **kwargs):
             calls["kwargs"] = kwargs

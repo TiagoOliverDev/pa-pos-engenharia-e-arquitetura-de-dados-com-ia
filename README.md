@@ -58,16 +58,20 @@ s3://<bucket>/bronze/fundo_eleitoral/ano_eleicao=2024/raw/
 
 #### Silver
 
-- reserva a camada de limpeza e padronizacao
-- conversao de tipos
-- tratamento de nulos
-- remocao de duplicidades
-- validacoes basicas
+- abre cada ZIP da Bronze e trata separadamente os quatro CSVs `fefc_genero`,
+  `fefc_cor_raca`, `fp_genero` e `fp_cor_raca`
+- aplica contratos explicitos para 2020 (municipal), 2022 (geral) e 2024 (municipal)
+- padroniza nomes de colunas e valores categoricos
+- converte inteiros, valores monetarios, percentuais, datas e horas
+- converte sentinelas vazias e valores numericos invalidos, como `#########`, em nulo
+- preserva arquivo e numero da linha de origem para rastreabilidade
+- registra contagens e conversoes invalidas no `_manifest.json` de cada ano
+- grava a saida tratada em `silver/fundo_eleitoral/ano_eleicao=YYYY/tratado/`
 
 Exemplo:
 
 ```text
-s3://<bucket>/silver/fundo_eleitoral/ano_eleicao=2024/
+s3://<bucket>/silver/fundo_eleitoral/ano_eleicao=2024/tratado/
 ```
 
 #### Gold
@@ -234,6 +238,10 @@ aws s3 cp s3://fefc-data-lake/bronze/fundo_eleitoral/ano_eleicao=2024/raw/fefc_f
 aws s3api head-object --bucket fefc-data-lake --key bronze/fundo_eleitoral/ano_eleicao=2024/raw/fefc_fp_2024.zip --endpoint-url http://localhost:4566
 ```
 
+```bash
+aws s3 ls s3://fefc-data-lake/silver/fundo_eleitoral/ano_eleicao=2024/tratado/ --endpoint-url http://localhost:4566
+```
+
 Se preferir, também vale conferir os logs da task `ingest` no Airflow, que mostram
 os anos processados e o total de arquivos enviados para a Bronze.
 
@@ -256,6 +264,7 @@ ou do `pyproject.toml`.
 - configuracao por variaveis de ambiente
 - DAG inicial do Airflow
 - abstracao de S3
+- tratamento e padronizacao da camada Silver por ano de eleicao
 - camada inicial de qualidade
 - camada inicial de acesso ao PostgreSQL
 - testes basicos
@@ -264,7 +273,6 @@ ou do `pyproject.toml`.
 
 ## O que Ficou Como Placeholder
 
-- transformacoes reais de Silver
 - regras definitivas de qualidade
 - modelo final do Data Warehouse
 - dashboard
@@ -311,5 +319,4 @@ Para manter o MVP simples e executavel:
 1. padronizar um registro de manifest mais completo para cada execucao
 2. definir o particionamento final do lake por ano de eleicao
 3. preparar a separacao entre arquivos brutos e arquivos derivados
-4. substituir os placeholders da DAG pelas etapas efetivas de tratamento
-5. conectar os proximos passos da Sprint 1 ao arquivo bruto ja ingerido
+4. conectar os proximos passos da Sprint 1 ao arquivo bruto ja ingerido

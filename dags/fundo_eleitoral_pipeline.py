@@ -69,17 +69,46 @@ def fundo_eleitoral_pipeline() -> None:
 
     @task
     def transform_silver(payload: dict[str, Any]) -> dict[str, Any]:
-        from src.silver.transformations import normalize_records
+        from src.bronze.storage import S3Storage
+        from src.silver.transformations import transform_bronze_manifest
 
-        silver_records = normalize_records(payload["manifest"])
-        LOGGER.info("Camada Silver preparada com %s registros.", len(silver_records))
-        return {**payload, "silver_records": silver_records}
+        storage = S3Storage()
+        silver_payload = transform_bronze_manifest(storage, payload["manifest"])
+        LOGGER.info(
+            "Camada Silver preparada com %s registros em %s arquivos.",
+            silver_payload["silver_record_count"],
+            len(silver_payload["silver_artifacts"]),
+        )
+        return {**payload, **silver_payload}
 
     @task
     def validate(payload: dict[str, Any]) -> dict[str, Any]:
+        from src.quality.validations import ValidationError
+        from src.quality.validations import ensure_positive_fields
         from src.quality.validations import validate_records
 
-        report = validate_records(payload["silver_records"], allow_empty=True)
+        ensure_positive_fields(
+            payload["silver_artifacts"],
+            fields=("source_row_count", "row_count"),
+        )
+
+        report = validate_records(
+            payload["silver_artifacts"],
+            required_fields=(
+                "election_year",
+                "dataset_name",
+                "source_archive_key",
+                "source_member",
+                "output_key",
+                "source_row_count",
+                "row_count",
+            ),
+            unique_fields=("source_archive_key", "source_member"),
+            allow_empty=False,
+        )
+        if not report.valid:
+            details = "; ".join(report.messages) or "falha de qualidade sem detalhes"
+            raise ValidationError(f"Camada Silver invalida: {details}")
         return {**payload, "validation": asdict(report)}
 
     @task
@@ -100,9 +129,9 @@ def fundo_eleitoral_pipeline() -> None:
 
     ingest_payload = ingest()
     bronze_payload = store_bronze(ingest_payload)
-    # silver_payload = transform_silver(bronze_payload)
-    # validated_payload = validate(silver_payload)
-    # load_gold(validated_payload)
+    silver_payload = transform_silver(bronze_payload)
+    validated_payload = validate(silver_payload)
+    load_gold(validated_payload)
 
 
 fundo_eleitoral_pipeline()

@@ -26,11 +26,11 @@ class PostgresWarehouse:
     """Thin wrapper around SQLAlchemy for the future Gold layer."""
 
     settings: Settings | None = field(default=None)
+    _engine: Engine | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.settings is None:
             self.settings = get_settings()
-        self._engine: Engine | None = None
         if create_engine is not None:
             self._engine = create_engine(
                 self.settings.postgres_sqlalchemy_url,

@@ -96,7 +96,7 @@ class Settings:
     @property
     def postgres_sqlalchemy_url(self) -> str:
         return (
-            "postgresql+psycopg://"
+            "postgresql+psycopg2://"
             f"{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
@@ -104,7 +104,7 @@ class Settings:
     @property
     def airflow_sqlalchemy_url(self) -> str:
         return (
-            "postgresql+psycopg://"
+            "postgresql+psycopg2://"
             f"{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/airflow"
         )

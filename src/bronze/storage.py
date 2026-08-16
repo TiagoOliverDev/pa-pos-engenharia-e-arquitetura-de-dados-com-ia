@@ -41,11 +41,17 @@ class S3PathBuilder:
     def silver_prefix(self, election_year: int) -> str:
         return self.build_prefix("silver", election_year)
 
+    def silver_treated_prefix(self, election_year: int) -> str:
+        return f"{self.silver_prefix(election_year)}tratado/"
+
     def raw_bronze_prefix(self, election_year: int) -> str:
         return f"{self.build_partitioned_prefix('bronze', {'ano_eleicao': election_year})}raw/"
 
     def build_key(self, layer: str, election_year: int, filename: str) -> str:
         return f"{self.build_prefix(layer, election_year)}{filename}"
+
+    def build_treated_silver_key(self, election_year: int, filename: str) -> str:
+        return f"{self.silver_treated_prefix(election_year)}{filename}"
 
     def build_raw_key(self, election_year: int, filename: str) -> str:
         return f"{self.raw_bronze_prefix(election_year)}{filename}"
