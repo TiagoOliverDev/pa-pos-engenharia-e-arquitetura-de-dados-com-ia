@@ -80,6 +80,11 @@ services:
     command: python -m src.gold.migrations up
     profiles: ["tools"]
 
+  warehouse-load:
+    <<: *airflow-common
+    command: python -m src.gold.analytical_loader
+    profiles: ["tools"]
+
 volumes:
   postgres_data:
   localstack_data:

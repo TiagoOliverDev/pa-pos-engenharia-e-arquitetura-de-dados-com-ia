@@ -100,10 +100,25 @@ def fundo_eleitoral_pipeline() -> None:
 
     @task
     def load_gold(payload: dict[str, Any]) -> dict[str, Any]:
+        from src.bronze.storage import S3Storage
+        from src.gold.analytical_loader import WarehouseLoadError
+        from src.gold.analytical_loader import load_silver_artifacts
         from src.gold.loader import PostgresWarehouse
 
+        if not payload["validation"]["valid"]:
+            raise WarehouseLoadError("Carga Gold bloqueada por falha de qualidade.")
+
         warehouse = PostgresWarehouse()
-        LOGGER.info("Conexao Gold preparada para %s.", warehouse.settings.postgres_db)
+        load_report = load_silver_artifacts(
+            S3Storage(),
+            payload["silver_artifacts"],
+            warehouse,
+        )
+        LOGGER.info(
+            "Carga Gold concluida no banco %s com %s registros.",
+            warehouse.settings.postgres_db,
+            load_report.inserted_rows,
+        )
         return {
             **payload,
             "gold_target": {
@@ -111,6 +126,7 @@ def fundo_eleitoral_pipeline() -> None:
                 "port": warehouse.settings.postgres_port,
                 "database": warehouse.settings.postgres_db,
             },
+            "warehouse_load": asdict(load_report),
             "gold_ready": True,
         }
 
@@ -118,7 +134,7 @@ def fundo_eleitoral_pipeline() -> None:
     bronze_payload = store_bronze(ingest_payload)
     silver_payload = transform_silver(bronze_payload)
     validated_payload = validate(silver_payload)
-    # load_gold(validated_payload)
+    load_gold(validated_payload)
 
 
 fundo_eleitoral_pipeline()

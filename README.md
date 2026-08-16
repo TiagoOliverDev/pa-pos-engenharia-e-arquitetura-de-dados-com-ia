@@ -129,6 +129,26 @@ A documentacao completa esta em
 [`docs/modelo_analitico.md`](docs/modelo_analitico.md). O diagrama visual esta em
 [`docs/diagrams/data_warehouse_erd.md`](docs/diagrams/data_warehouse_erd.md).
 
+### Carga no Data Warehouse
+
+A task `load_gold` carrega os CSVs Silver somente depois da validacao de
+qualidade. A carga usa `COPY`, atualiza as dimensoes e substitui a fatia do mesmo
+ano e arquivo para evitar duplicidades em reexecucoes.
+
+Executar manualmente todos os anos validados:
+
+```bash
+docker compose run --rm warehouse-load
+```
+
+Executar anos selecionados:
+
+```bash
+docker compose run --rm warehouse-load python -m src.gold.analytical_loader --years 2022 2024
+```
+
+O resultado de cada arquivo fica registrado em `dw.carga_arquivo`.
+
 ### PostgreSQL Local
 
 O servico `postgres` cria automaticamente o banco `fefc_dw`. Dentro do Docker,

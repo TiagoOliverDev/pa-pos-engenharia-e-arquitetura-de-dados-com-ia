@@ -119,6 +119,7 @@ Partidario (`fp_*`).
 | `sigla_uf` | `CHAR(2)` | obrigatoria a partir da esfera estadual |
 | `sigla_ue` | `VARCHAR(10)` | obrigatoria na esfera municipal |
 | `municipio` | `VARCHAR(150)` | obrigatorio na esfera municipal |
+| `chave_natural` | `TEXT` | chave gerada e indexada para carga eficiente |
 | `criado_em` | `TIMESTAMPTZ` | auditoria de criacao |
 
 Regras de integridade:
@@ -273,6 +274,68 @@ docker compose run --rm warehouse-migrations python -m src.gold.migrations statu
 
 O executor valida checksum, aplica as migrations em transacao e utiliza lock
 para impedir execucoes concorrentes.
+
+## Carga da Silver
+
+A carga e implementada em
+[`src/gold/analytical_loader.py`](../src/gold/analytical_loader.py) e executada
+pela task `load_gold` da DAG somente depois de um relatorio de qualidade valido.
+
+Fluxo de cada artefato:
+
+1. baixa o CSV tratado do S3;
+2. confere schema e contagem contra o manifesto Silver;
+3. usa `COPY` para uma tabela temporaria PostgreSQL;
+4. insere ou atualiza partido, genero, cor/raca e localidade;
+5. remove somente a fatia anterior do mesmo ano e arquivo;
+6. insere na tabela fato pai, deixando o PostgreSQL selecionar a particao;
+7. registra o resultado em `dw.carga_arquivo`.
+
+Os 12 artefatos sao carregados em uma unica transacao. Se qualquer arquivo
+falhar, toda a execucao e revertida. A substituicao por `ano_eleicao +
+source_member` torna a carga idempotente e tambem remove registros que tenham
+desaparecido em uma revisao posterior do TSE.
+
+A dimensao de localidade possui `chave_natural` gerada e indexada para tornar o
+join dos arquivos municipais eficiente sem perder a semantica de campos nulos.
+
+Executar a carga manual dos anos do MVP:
+
+```bash
+docker compose run --rm warehouse-load
+```
+
+Executar somente anos selecionados:
+
+```bash
+docker compose run --rm warehouse-load python -m src.gold.analytical_loader --years 2022 2024
+```
+
+A carga manual exige que `_quality_report.json` esteja presente e marcado como
+valido para cada ano solicitado.
+
+Consultar a auditoria:
+
+```sql
+SELECT
+    ano_eleicao,
+    dataset_name,
+    linhas_origem,
+    linhas_removidas,
+    linhas_inseridas,
+    carregado_em
+FROM dw.carga_arquivo
+ORDER BY ano_eleicao, dataset_name;
+```
+
+Validar as contagens por particao:
+
+```sql
+SELECT tableoid::regclass AS particao, COUNT(*) AS linhas
+FROM dw.fato_fp_genero
+GROUP BY tableoid
+ORDER BY particao;
+```
 
 ## Conexao Local
 
