@@ -98,11 +98,13 @@ class _FakeStorage:
         self, key: str, payload: bytes, content_type: str = "application/octet-stream"
     ) -> None:
         self.uploaded_bytes.append((key, payload, content_type))
+        self._archives[key] = payload
 
     def upload_text(
         self, key: str, content: str, content_type: str = "text/plain; charset=utf-8"
     ) -> None:
         self.uploaded_text.append((key, content, content_type))
+        self._archives[key] = content.encode("utf-8")
 
 
 def _transform_year(year: int, *, fp_percentage: str = "10,00") -> tuple[dict, _FakeStorage]:

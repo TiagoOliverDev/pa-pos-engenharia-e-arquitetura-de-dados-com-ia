@@ -74,6 +74,19 @@ Exemplo:
 s3://<bucket>/silver/fundo_eleitoral/ano_eleicao=2024/tratado/
 ```
 
+#### Qualidade
+
+- le os CSVs Silver diretamente do S3 apos o tratamento
+- valida schema, campos obrigatorios, tipos, dominios e ano da particao
+- identifica nulos, duplicidades no grao e divergencias de contagem
+- verifica integridade geografica por esfera partidaria
+- compara a cobertura entre os arquivos de genero e cor/raca
+- registra percentuais fora de 0 a 100, ajustes negativos e nulos vindos da
+  fonte como alertas nao bloqueantes
+- interrompe a DAG quando encontra erros estruturais ou de integridade
+- grava um relatorio por ano em
+  `quality/fundo_eleitoral/ano_eleicao=YYYY/_quality_report.json`
+
 #### Gold
 
 - camada de consumo analitico
@@ -242,6 +255,18 @@ aws s3api head-object --bucket fefc-data-lake --key bronze/fundo_eleitoral/ano_e
 aws s3 ls s3://fefc-data-lake/silver/fundo_eleitoral/ano_eleicao=2024/tratado/ --endpoint-url http://localhost:4566
 ```
 
+Liste os relatorios de qualidade particionados por ano:
+
+```bash
+aws s3 ls s3://fefc-data-lake/quality/fundo_eleitoral/ --recursive --endpoint-url http://localhost:4566
+```
+
+Abra o relatorio de uma eleicao diretamente no terminal:
+
+```bash
+aws s3 cp s3://fefc-data-lake/quality/fundo_eleitoral/ano_eleicao=2024/_quality_report.json - --endpoint-url http://localhost:4566
+```
+
 Se preferir, também vale conferir os logs da task `ingest` no Airflow, que mostram
 os anos processados e o total de arquivos enviados para a Bronze.
 
@@ -265,7 +290,7 @@ ou do `pyproject.toml`.
 - DAG inicial do Airflow
 - abstracao de S3
 - tratamento e padronizacao da camada Silver por ano de eleicao
-- camada inicial de qualidade
+- qualidade de dados com relatorios particionados no S3
 - camada inicial de acesso ao PostgreSQL
 - testes basicos
 - Docker Compose local
@@ -273,7 +298,6 @@ ou do `pyproject.toml`.
 
 ## O que Ficou Como Placeholder
 
-- regras definitivas de qualidade
 - modelo final do Data Warehouse
 - dashboard
 - indicadores e KPIs

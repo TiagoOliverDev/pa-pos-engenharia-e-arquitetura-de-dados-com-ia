@@ -16,6 +16,9 @@ def test_bronze_prefix_building() -> None:
     assert builder.build_treated_silver_key(2024, "fefc_fp_2024_tratado.csv") == (
         "silver/fundo_eleitoral/ano_eleicao=2024/tratado/fefc_fp_2024_tratado.csv"
     )
+    assert builder.build_quality_report_key(2024) == (
+        "quality/fundo_eleitoral/ano_eleicao=2024/_quality_report.json"
+    )
     assert builder.build_partitioned_prefix("bronze", {"ano_eleicao": 2024}) == (
         "bronze/fundo_eleitoral/ano_eleicao=2024/"
     )

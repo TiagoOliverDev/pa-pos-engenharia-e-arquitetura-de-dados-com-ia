@@ -83,32 +83,19 @@ def fundo_eleitoral_pipeline() -> None:
 
     @task
     def validate(payload: dict[str, Any]) -> dict[str, Any]:
+        from src.bronze.storage import S3Storage
+        from src.quality.fefc_validations import validate_silver_artifacts
         from src.quality.validations import ValidationError
-        from src.quality.validations import ensure_positive_fields
-        from src.quality.validations import validate_records
 
-        ensure_positive_fields(
+        report = validate_silver_artifacts(
+            S3Storage(),
             payload["silver_artifacts"],
-            fields=("source_row_count", "row_count"),
-        )
-
-        report = validate_records(
-            payload["silver_artifacts"],
-            required_fields=(
-                "election_year",
-                "dataset_name",
-                "source_archive_key",
-                "source_member",
-                "output_key",
-                "source_row_count",
-                "row_count",
-            ),
-            unique_fields=("source_archive_key", "source_member"),
-            allow_empty=False,
         )
         if not report.valid:
-            details = "; ".join(report.messages) or "falha de qualidade sem detalhes"
-            raise ValidationError(f"Camada Silver invalida: {details}")
+            raise ValidationError(
+                "Camada Silver invalida: "
+                f"{report.error_count} erros e {report.warning_count} alertas."
+            )
         return {**payload, "validation": asdict(report)}
 
     @task
@@ -131,7 +118,7 @@ def fundo_eleitoral_pipeline() -> None:
     bronze_payload = store_bronze(ingest_payload)
     silver_payload = transform_silver(bronze_payload)
     validated_payload = validate(silver_payload)
-    load_gold(validated_payload)
+    # load_gold(validated_payload)
 
 
 fundo_eleitoral_pipeline()
