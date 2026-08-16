@@ -29,10 +29,12 @@ DEFAULT_RETRY_DELAY_SECONDS = 300
     description="Pipeline inicial do MVP FEFC",
 )
 def fundo_eleitoral_pipeline() -> None:
-    """Orquestra as camadas do projeto sem aplicar a regra final de negocio."""
+    """Define as dependencias do pipeline FEFC no Airflow; nao recebe nem retorna dados."""
 
     @task
     def ingest() -> dict[str, Any]:
+        """Nao recebe parametros, grava os arquivos na Bronze e retorna seu manifesto."""
+
         from src.bronze.storage import S3Storage
         from src.ingestion.tse_client import TSEClient
 
@@ -54,6 +56,8 @@ def fundo_eleitoral_pipeline() -> None:
 
     @task
     def store_bronze(payload: dict[str, Any]) -> dict[str, Any]:
+        """Recebe o manifesto ingerido e retorna o payload com os prefixos Bronze."""
+
         from src.bronze.storage import S3Storage
 
         storage = S3Storage()
@@ -69,6 +73,8 @@ def fundo_eleitoral_pipeline() -> None:
 
     @task
     def transform_silver(payload: dict[str, Any]) -> dict[str, Any]:
+        """Recebe o payload Bronze, trata os CSVs e retorna os artefatos Silver."""
+
         from src.bronze.storage import S3Storage
         from src.silver.transformations import transform_bronze_manifest
 
@@ -83,6 +89,8 @@ def fundo_eleitoral_pipeline() -> None:
 
     @task
     def validate(payload: dict[str, Any]) -> dict[str, Any]:
+        """Recebe artefatos Silver, valida sua qualidade e retorna o relatorio no payload."""
+
         from src.bronze.storage import S3Storage
         from src.quality.fefc_validations import validate_silver_artifacts
         from src.quality.validations import ValidationError
@@ -100,6 +108,8 @@ def fundo_eleitoral_pipeline() -> None:
 
     @task
     def load_gold(payload: dict[str, Any]) -> dict[str, Any]:
+        """Recebe dados validados, carrega o DW e retorna o resultado da camada Gold."""
+
         from src.bronze.storage import S3Storage
         from src.gold.analytical_loader import WarehouseLoadError
         from src.gold.analytical_loader import load_silver_artifacts

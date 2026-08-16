@@ -147,6 +147,8 @@ _ELECTION_TREATMENTS = {
 
 @dataclass(frozen=True, slots=True)
 class MemberIdentity:
+    """Identifica o dataset, o fundo e a dimensao representados por um CSV do ZIP."""
+
     dataset_name: str
     fund_type: str
     aggregation_dimension: str
@@ -172,17 +174,23 @@ class SilverArtifact:
 
 
 def _strip_accents(value: str) -> str:
+    """Recebe um texto e retorna sua representacao sem marcas de acentuacao."""
+
     normalized = unicodedata.normalize("NFKD", value)
     return "".join(char for char in normalized if not unicodedata.combining(char))
 
 
 def _normalize_column_name(value: str) -> str:
+    """Recebe um nome de coluna e retorna um identificador canonico em snake_case."""
+
     slug = _strip_accents(str(value)).lower().strip()
     slug = re.sub(r"[^a-z0-9]+", "_", slug)
     return re.sub(r"_+", "_", slug).strip("_") or "coluna"
 
 
 def _clean_scalar(value: Any) -> Any:
+    """Recebe um valor e retorna sua versao limpa ou nula para tokens vazios."""
+
     if value is None:
         return None
     if not isinstance(value, str):
@@ -194,6 +202,8 @@ def _clean_scalar(value: Any) -> Any:
 
 
 def _parse_integer(value: Any) -> tuple[int | None, bool]:
+    """Recebe um valor e retorna o inteiro convertido e um indicador de invalidade."""
+
     cleaned = _clean_scalar(value)
     if cleaned is None:
         return None, False
@@ -204,6 +214,8 @@ def _parse_integer(value: Any) -> tuple[int | None, bool]:
 
 
 def _parse_brazilian_decimal(value: Any) -> tuple[Decimal | None, bool]:
+    """Recebe um numero no formato brasileiro e retorna o decimal e sua invalidade."""
+
     cleaned = _clean_scalar(value)
     if cleaned is None:
         return None, False
@@ -220,6 +232,8 @@ def _parse_brazilian_decimal(value: Any) -> tuple[Decimal | None, bool]:
 
 
 def _parse_date(value: Any) -> tuple[str | None, bool]:
+    """Recebe uma data brasileira e retorna a data ISO e um indicador de invalidade."""
+
     cleaned = _clean_scalar(value)
     if cleaned is None:
         return None, False
@@ -230,6 +244,8 @@ def _parse_date(value: Any) -> tuple[str | None, bool]:
 
 
 def _parse_time(value: Any) -> tuple[str | None, bool]:
+    """Recebe um horario textual e retorna o horario ISO e sua invalidade."""
+
     cleaned = _clean_scalar(value)
     if cleaned is None:
         return None, False
@@ -242,6 +258,8 @@ def _parse_time(value: Any) -> tuple[str | None, bool]:
 
 
 def _classify_member(member_name: str, election_year: int) -> MemberIdentity:
+    """Recebe o arquivo e o ano esperado e retorna sua identidade de dataset."""
+
     filename = Path(member_name).name
     match = _MEMBER_PATTERN.fullmatch(filename)
     if match is None:
@@ -263,6 +281,8 @@ def _classify_member(member_name: str, election_year: int) -> MemberIdentity:
 def _read_csv_from_member(
     zip_file: zipfile.ZipFile, member_name: str
 ) -> tuple[list[str], list[list[str]], str]:
+    """Recebe um ZIP e um membro CSV e retorna cabecalho, linhas e codificacao."""
+
     member_bytes = zip_file.read(member_name)
     last_error: Exception | None = None
     for encoding in ("utf-8-sig", "latin-1"):
@@ -278,6 +298,8 @@ def _read_csv_from_member(
 
 
 def _convert_value(column: str, value: Any) -> tuple[Any, bool]:
+    """Recebe coluna e valor e retorna o valor convertido e sua invalidade."""
+
     if column in _INTEGER_COLUMNS:
         return _parse_integer(value)
     if column in _DECIMAL_COLUMNS:
@@ -302,6 +324,8 @@ def _clean_rows(
     source_archive: str,
     source_member: str,
 ) -> tuple[list[dict[str, Any]], list[str], dict[str, int]]:
+    """Recebe linhas brutas e seu contexto e retorna linhas, colunas e erros tratados."""
+
     expected_headers = _SOURCE_SCHEMAS[identity.dataset_name]
     if tuple(headers) != expected_headers:
         raise ValueError(
@@ -367,6 +391,8 @@ def _clean_rows(
 
 
 def _rows_to_csv(rows: Sequence[Mapping[str, Any]], columns: Sequence[str]) -> str:
+    """Recebe registros e a ordem das colunas e retorna o CSV separado por ponto e virgula."""
+
     buffer = StringIO(newline="")
     writer = csv.DictWriter(buffer, fieldnames=list(columns), delimiter=";")
     writer.writeheader()
@@ -376,7 +402,7 @@ def _rows_to_csv(rows: Sequence[Mapping[str, Any]], columns: Sequence[str]) -> s
 
 
 def normalize_records(records: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Normaliza chaves e valores de registros genericos."""
+    """Recebe registros genericos e retorna chaves e valores normalizados."""
 
     return [
         {_normalize_column_name(key): _clean_scalar(value) for key, value in record.items()}
@@ -387,6 +413,8 @@ def normalize_records(records: Sequence[Mapping[str, Any]]) -> list[dict[str, An
 def _validate_archive_members(
     treatment: ElectionTreatment, identities: Sequence[MemberIdentity]
 ) -> None:
+    """Recebe o contrato e os CSVs, valida sua completude e nao retorna valor."""
+
     dataset_counts = Counter(identity.dataset_name for identity in identities)
     duplicated = sorted(name for name, count in dataset_counts.items() if count > 1)
     if duplicated:
@@ -409,7 +437,7 @@ def transform_bronze_manifest(
     *,
     collect_records: bool = False,
 ) -> dict[str, Any]:
-    """Transforma os ZIPs Bronze e grava os CSVs padronizados na Silver."""
+    """Recebe storage e manifesto Bronze, grava CSVs tratados e retorna o manifesto Silver."""
 
     storage.ensure_bucket()
     silver_records: list[dict[str, Any]] = []

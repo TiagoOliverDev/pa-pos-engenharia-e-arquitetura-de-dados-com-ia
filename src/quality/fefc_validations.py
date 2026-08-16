@@ -131,6 +131,8 @@ _GRAIN_FIELDS = {
 
 @dataclass(frozen=True, slots=True)
 class QualityIssue:
+    """Descreve uma inconsistencia encontrada, sua gravidade e exemplos de linhas."""
+
     rule: str
     severity: str
     election_year: int
@@ -145,6 +147,8 @@ class QualityIssue:
 
 @dataclass(frozen=True, slots=True)
 class ArtifactQualityResult:
+    """Resume a validacao de um artefato Silver e suas inconsistencias."""
+
     election_year: int
     dataset_name: str
     output_key: str
@@ -158,6 +162,8 @@ class ArtifactQualityResult:
 
 @dataclass(frozen=True, slots=True)
 class QualityReport:
+    """Consolida os resultados e relatorios persistidos de uma execucao de qualidade."""
+
     valid: bool
     generated_at: str
     artifact_count: int
@@ -171,6 +177,8 @@ class QualityReport:
 
 @dataclass(slots=True)
 class _IssueState:
+    """Acumula a contagem e exemplos de linhas de uma regra durante a validacao."""
+
     rule: str
     severity: str
     column: str | None
@@ -179,6 +187,8 @@ class _IssueState:
     sample_rows: list[int] | None = None
 
     def add(self, source_row: int | None = None, count: int = 1) -> None:
+        """Recebe uma linha e quantidade e as incorpora ao estado; nao retorna valor."""
+
         self.count += count
         if self.sample_rows is None:
             self.sample_rows = []
@@ -188,16 +198,22 @@ class _IssueState:
 
 @dataclass(slots=True)
 class _ArtifactProfile:
+    """Agrupa o resultado e as chaves naturais observadas em um artefato."""
+
     result: ArtifactQualityResult
     issues: list[QualityIssue]
     parent_keys: set[tuple[str, ...]]
 
 
 def _is_null(value: Any) -> bool:
+    """Recebe um valor e retorna se ele deve ser considerado nulo."""
+
     return value is None or str(value).strip() == ""
 
 
 def _source_row(row: Mapping[str, str], fallback: int) -> int:
+    """Recebe um registro e uma linha alternativa e retorna a linha de origem valida."""
+
     try:
         return int(row.get("source_row_number") or fallback)
     except ValueError:
@@ -214,6 +230,8 @@ def _issue(
     source_row: int | None = None,
     count: int = 1,
 ) -> None:
+    """Recebe os dados de uma ocorrencia e a acumula por regra; nao retorna valor."""
+
     key = (rule, severity, column)
     if key not in states:
         states[key] = _IssueState(rule, severity, column, message)
@@ -221,6 +239,8 @@ def _issue(
 
 
 def _parse_integer(value: str) -> int | None:
+    """Recebe um texto e retorna o inteiro convertido ou nulo quando invalido."""
+
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -228,6 +248,8 @@ def _parse_integer(value: str) -> int | None:
 
 
 def _parse_decimal(value: str) -> Decimal | None:
+    """Recebe um texto e retorna o decimal convertido ou nulo quando invalido."""
+
     try:
         return Decimal(value)
     except (InvalidOperation, TypeError, ValueError):
@@ -239,6 +261,8 @@ def _validate_geography(
     states: dict[tuple[str, str, str | None], _IssueState],
     source_row: int,
 ) -> None:
+    """Recebe uma linha FP, registra inconsistencias geograficas e nao retorna valor."""
+
     level = row.get("esfera_partidaria", "")
     uf = row.get("sigla_uf", "")
     ue = row.get("sigla_ue", "")
@@ -284,6 +308,8 @@ def _validate_row(
     states: dict[tuple[str, str, str | None], _IssueState],
     fallback_row: int,
 ) -> None:
+    """Recebe uma linha Silver e seu contrato, registra violacoes e nao retorna valor."""
+
     source_row = _source_row(row, fallback_row)
     election_year = int(artifact["election_year"])
     dataset_name = str(artifact["dataset_name"])
@@ -439,6 +465,8 @@ def _finalize_issues(
     artifact: Mapping[str, Any],
     row_count: int,
 ) -> list[QualityIssue]:
+    """Recebe estados acumulados e retorna as inconsistencias consolidadas do artefato."""
+
     return [
         QualityIssue(
             rule=state.rule,
@@ -460,6 +488,8 @@ def _validate_artifact(
     storage: S3Storage,
     artifact: Mapping[str, Any],
 ) -> _ArtifactProfile:
+    """Recebe storage e metadados Silver e retorna o perfil de qualidade do CSV."""
+
     dataset_name = str(artifact["dataset_name"])
     output_key = str(artifact["output_key"])
     content = storage.download_bytes(output_key).decode("utf-8-sig")
@@ -570,6 +600,8 @@ def _cross_artifact_issues(
     artifacts: Sequence[Mapping[str, Any]],
     profiles: Mapping[tuple[int, str], _ArtifactProfile],
 ) -> list[QualityIssue]:
+    """Recebe artefatos e perfis e retorna inconsistencias entre arquivos relacionados."""
+
     issues: list[QualityIssue] = []
     by_year: dict[int, list[Mapping[str, Any]]] = defaultdict(list)
     for artifact in artifacts:
@@ -633,6 +665,8 @@ def _build_report(
     issues: Sequence[QualityIssue],
     report_keys: Sequence[str],
 ) -> QualityReport:
+    """Recebe perfis, inconsistencias e chaves e retorna o relatorio consolidado."""
+
     artifacts = tuple(profile.result for profile in profiles)
     return QualityReport(
         valid=not any(issue.severity == "error" for issue in issues),
@@ -655,7 +689,7 @@ def validate_silver_artifacts(
     *,
     persist_reports: bool = True,
 ) -> QualityReport:
-    """Valida o conteudo Silver e persiste um relatorio particionado por ano."""
+    """Recebe storage e artefatos Silver, valida e retorna o relatorio de qualidade."""
 
     if not artifacts:
         raise ValueError("Nenhum artefato Silver recebido para validacao.")

@@ -6,7 +6,7 @@ import logging
 
 
 def configure_logging(level: int = logging.INFO) -> None:
-    """Configure the root logger once."""
+    """Recebe o nivel desejado e configura o logger raiz; nao retorna valor."""
 
     logging.basicConfig(
         level=level,
@@ -15,8 +15,7 @@ def configure_logging(level: int = logging.INFO) -> None:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Return a module logger after ensuring the root logger is ready."""
+    """Recebe o nome do modulo e retorna seu logger com a configuracao padrao."""
 
     configure_logging()
     return logging.getLogger(name)
-

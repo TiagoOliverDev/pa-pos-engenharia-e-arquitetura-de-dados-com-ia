@@ -18,12 +18,16 @@ if load_dotenv is not None:
 
 
 def _as_int(value: str | None, default: int) -> int:
+    """Recebe um texto opcional e um padrao e retorna o valor convertido em inteiro."""
+
     if value is None or not value.strip():
         return default
     return int(value)
 
 
 def _as_date(value: str | None, default: date) -> date:
+    """Recebe uma data textual opcional e um padrao e retorna um objeto de data."""
+
     if value is None or not value.strip():
         return default
     return datetime.strptime(value, "%Y-%m-%d").date()
@@ -64,6 +68,8 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
+        """Nao recebe parametros externos e retorna as configuracoes lidas do ambiente."""
+
         project_root = Path(__file__).resolve().parents[2]
         return cls(
             app_env=os.getenv("APP_ENV", "local"),
@@ -95,6 +101,8 @@ class Settings:
 
     @property
     def postgres_sqlalchemy_url(self) -> str:
+        """Nao recebe parametros adicionais e retorna a URL SQLAlchemy do Data Warehouse."""
+
         return (
             "postgresql+psycopg2://"
             f"{self.postgres_user}:{self.postgres_password}"
@@ -103,6 +111,8 @@ class Settings:
 
     @property
     def airflow_sqlalchemy_url(self) -> str:
+        """Nao recebe parametros adicionais e retorna a URL do banco do Airflow."""
+
         return (
             "postgresql+psycopg2://"
             f"{self.postgres_user}:{self.postgres_password}"
@@ -111,11 +121,13 @@ class Settings:
 
     @property
     def use_localstack(self) -> bool:
+        """Nao recebe parametros adicionais e retorna se o LocalStack esta configurado."""
+
         return self.s3_endpoint_url is not None
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return cached settings so the rest of the project can reuse them."""
+    """Nao recebe parametros e retorna as configuracoes reutilizaveis do projeto."""
 
     return Settings.from_env()

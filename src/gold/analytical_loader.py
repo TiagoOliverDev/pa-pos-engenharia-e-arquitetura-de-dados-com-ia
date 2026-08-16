@@ -20,11 +20,13 @@ _IDENTIFIER_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 
 class WarehouseLoadError(RuntimeError):
-    """Raised when a Silver artifact cannot be loaded safely."""
+    """Indica que um artefato Silver nao pode ser carregado com seguranca."""
 
 
 @dataclass(frozen=True, slots=True)
 class DatasetLoadSpec:
+    """Define a tabela de destino e as dimensoes exigidas por um dataset."""
+
     target_table: str
     uses_location: bool
     uses_race: bool
@@ -32,6 +34,8 @@ class DatasetLoadSpec:
 
 @dataclass(frozen=True, slots=True)
 class ArtifactLoadResult:
+    """Resume as linhas preparadas, substituidas e inseridas para um artefato."""
+
     election_year: int
     dataset_name: str
     source_member: str
@@ -43,6 +47,8 @@ class ArtifactLoadResult:
 
 @dataclass(frozen=True, slots=True)
 class WarehouseLoadReport:
+    """Consolida os resultados de uma carga de artefatos no Data Warehouse."""
+
     artifact_count: int
     staged_rows: int
     deleted_rows: int
@@ -59,18 +65,24 @@ _LOAD_SPECS = {
 
 
 def _quote_identifier(identifier: str) -> str:
+    """Recebe um identificador SQL, valida seu formato e retorna o nome entre aspas."""
+
     if _IDENTIFIER_PATTERN.fullmatch(identifier) is None:
         raise WarehouseLoadError(f"Identificador SQL invalido: {identifier!r}")
     return f'"{identifier}"'
 
 
 def _stage_name(dataset_name: str) -> str:
+    """Recebe o nome do dataset e retorna sua tabela temporaria de staging."""
+
     if dataset_name not in _LOAD_SPECS:
         raise WarehouseLoadError(f"Dataset Silver nao suportado: {dataset_name}")
     return f"stage_{dataset_name}"
 
 
 def _read_silver_csv(payload: bytes) -> tuple[tuple[str, ...], str]:
+    """Recebe um CSV Silver em bytes e retorna seus cabecalhos e conteudo textual."""
+
     content = payload.decode("utf-8-sig")
     reader = csv.reader(StringIO(content), delimiter=";")
     headers = tuple(next(reader, ()))
@@ -82,6 +94,8 @@ def _read_silver_csv(payload: bytes) -> tuple[tuple[str, ...], str]:
 
 
 def _create_stage(cursor, stage_name: str, columns: Sequence[str]) -> None:
+    """Recebe cursor, staging e colunas e cria a tabela temporaria; nao retorna valor."""
+
     quoted_stage = _quote_identifier(stage_name)
     definitions = ", ".join(f"{_quote_identifier(column)} TEXT" for column in columns)
     cursor.execute(f"DROP TABLE IF EXISTS {quoted_stage}")
@@ -96,6 +110,8 @@ def _copy_stage(
     columns: Sequence[str],
     content: str,
 ) -> int:
+    """Recebe cursor, staging, colunas e CSV e retorna a quantidade copiada."""
+
     quoted_stage = _quote_identifier(stage_name)
     quoted_columns = ", ".join(_quote_identifier(column) for column in columns)
     cursor.copy_expert(
@@ -110,6 +126,8 @@ def _copy_stage(
 
 
 def _upsert_dimensions(cursor, stage_name: str, spec: DatasetLoadSpec) -> None:
+    """Recebe cursor, staging e contrato e atualiza as dimensoes; nao retorna valor."""
+
     stage = _quote_identifier(stage_name)
     cursor.execute(
         f"""
@@ -163,6 +181,8 @@ def _upsert_dimensions(cursor, stage_name: str, spec: DatasetLoadSpec) -> None:
 
 
 def _dimension_joins(spec: DatasetLoadSpec) -> str:
+    """Recebe o contrato do dataset e retorna os JOINs SQL de suas dimensoes."""
+
     joins = """
         JOIN dw.dim_partido p
           ON p.ano_eleicao = s.ano_eleicao::SMALLINT
@@ -192,6 +212,8 @@ def _dimension_joins(spec: DatasetLoadSpec) -> str:
 
 
 def _fact_insert_sql(dataset_name: str, stage_name: str) -> str:
+    """Recebe dataset e staging e retorna o SQL de substituicao da particao da fato."""
+
     spec = _LOAD_SPECS[dataset_name]
     stage = _quote_identifier(stage_name)
     joins = _dimension_joins(spec)
@@ -284,6 +306,8 @@ def _record_load_audit(
     artifact: Mapping[str, Any],
     result: ArtifactLoadResult,
 ) -> None:
+    """Recebe cursor, artefato e resultado e registra a auditoria; nao retorna valor."""
+
     cursor.execute(
         """
         INSERT INTO dw.carga_arquivo (
@@ -318,6 +342,8 @@ def _record_load_audit(
 
 
 def _load_artifact(cursor, storage: S3Storage, artifact: Mapping[str, Any]) -> ArtifactLoadResult:
+    """Recebe cursor, storage e artefato e retorna o resultado de sua carga transacional."""
+
     dataset_name = str(artifact["dataset_name"])
     spec = _LOAD_SPECS.get(dataset_name)
     if spec is None:
@@ -374,7 +400,7 @@ def load_silver_artifacts(
     artifacts: Sequence[Mapping[str, Any]],
     warehouse: PostgresWarehouse | None = None,
 ) -> WarehouseLoadReport:
-    """Load validated Silver artifacts into the partitioned analytical model."""
+    """Recebe storage, artefatos e warehouse opcional e retorna o relatorio da carga Gold."""
 
     if not artifacts:
         raise WarehouseLoadError("Nenhum artefato Silver recebido para carga.")
@@ -422,7 +448,7 @@ def load_silver_artifacts(
 def load_from_s3_manifests(
     election_years: Sequence[int] = FEFC_ELECTION_YEARS,
 ) -> WarehouseLoadReport:
-    """Manual entrypoint that requires valid persisted quality reports."""
+    """Recebe anos eleitorais, le manifestos validos no S3 e retorna o relatorio da carga."""
 
     storage = S3Storage()
     artifacts: list[dict[str, Any]] = []
@@ -440,12 +466,16 @@ def load_from_s3_manifests(
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Nao recebe parametros e retorna o parser da carga manual do Data Warehouse."""
+
     parser = argparse.ArgumentParser(description="Carga Silver para o DW FEFC")
     parser.add_argument("--years", nargs="+", type=int, default=list(FEFC_ELECTION_YEARS))
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Recebe argumentos opcionais, executa a carga manual e retorna o codigo de saida."""
+
     args = _build_parser().parse_args(argv)
     report = load_from_s3_manifests(args.years)
     print(json.dumps(asdict(report), ensure_ascii=False, indent=2))

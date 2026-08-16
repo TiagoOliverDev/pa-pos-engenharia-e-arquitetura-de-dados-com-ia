@@ -11,11 +11,13 @@ LOGGER = get_logger(__name__)
 
 
 class ValidationError(ValueError):
-    """Raised when a dataset does not satisfy a basic rule."""
+    """Indica que um conjunto de dados violou uma regra basica de qualidade."""
 
 
 @dataclass(frozen=True, slots=True)
 class ValidationReport:
+    """Resume a validacao com quantidade de registros, duplicidades e campos nulos."""
+
     valid: bool
     record_count: int
     duplicate_count: int
@@ -24,6 +26,8 @@ class ValidationReport:
 
 
 def ensure_not_empty(records: Sequence[Mapping[str, Any]], allow_empty: bool = False) -> None:
+    """Recebe registros e a permissao de vazio e valida se ha dados; nao retorna valor."""
+
     if records or allow_empty:
         return
     raise ValidationError("O conjunto de registros esta vazio.")
@@ -33,7 +37,7 @@ def ensure_positive_fields(
     records: Sequence[Mapping[str, Any]],
     fields: Sequence[str],
 ) -> None:
-    """Require numeric counters to be greater than zero."""
+    """Recebe registros e campos, valida valores positivos e nao retorna valor."""
 
     for record_index, record in enumerate(records):
         for field in fields:
@@ -49,6 +53,8 @@ def find_duplicate_rows(
     records: Sequence[Mapping[str, Any]],
     key_fields: Sequence[str],
 ) -> list[dict[str, Any]]:
+    """Recebe registros e campos-chave e retorna as linhas com chaves duplicadas."""
+
     seen: set[tuple[Any, ...]] = set()
     duplicates: list[dict[str, Any]] = []
     for record in records:
@@ -66,10 +72,7 @@ def validate_records(
     unique_fields: Sequence[str] = (),
     allow_empty: bool = False,
 ) -> ValidationReport:
-    """Run a small set of generic validations.
-
-    This is intentionally simple and does not encode the final business rules.
-    """
+    """Recebe registros e regras genericas e retorna o relatorio de validacao."""
 
     ensure_not_empty(records, allow_empty=allow_empty)
     missing_fields: set[str] = set()

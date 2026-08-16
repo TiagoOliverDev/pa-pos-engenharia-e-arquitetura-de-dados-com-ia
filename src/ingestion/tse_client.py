@@ -42,6 +42,8 @@ class DownloadedArchive:
 
     @property
     def size_bytes(self) -> int:
+        """Nao recebe parametros adicionais e retorna o tamanho do conteudo em bytes."""
+
         return len(self.content)
 
 
@@ -49,29 +51,35 @@ class TSEClient:
     """Cliente responsavel por obter os arquivos oficiais do FEFC."""
 
     def __init__(self, settings: Settings | None = None) -> None:
+        """Recebe configuracoes opcionais, inicializa o cliente e nao retorna valor."""
+
         self._settings = settings or get_settings()
         self._scope = FEFCSourceScope()
 
     @property
     def settings(self) -> Settings:
+        """Nao recebe parametros adicionais e retorna as configuracoes do cliente."""
+
         return self._settings
 
     @property
     def scope(self) -> FEFCSourceScope:
+        """Nao recebe parametros adicionais e retorna a fonte e os anos do MVP."""
+
         return self._scope
 
     def list_election_years(self) -> tuple[int, ...]:
-        """Return the fixed MVP scope for the last three elections."""
+        """Nao recebe parametros e retorna os anos das tres eleicoes do MVP."""
 
         return self.scope.election_years
 
     def list_archive_specs(self) -> tuple[FEFCArchiveSpec, ...]:
-        """Return the official TSE archive metadata for the MVP scope."""
+        """Nao recebe parametros e retorna os metadados dos arquivos oficiais do MVP."""
 
         return self.scope.archive_specs
 
     def build_context(self, election_year: int | None = None) -> IngestionContext:
-        """Build the run context and validate the year against the MVP scope."""
+        """Recebe um ano opcional, valida o escopo e retorna o contexto da ingestao."""
 
         year = election_year or self.settings.default_election_year
         if not self.scope.contains(year):
@@ -89,7 +97,7 @@ class TSEClient:
         )
 
     def download_archive(self, spec: FEFCArchiveSpec, timeout_seconds: int = 120) -> DownloadedArchive:
-        """Download one official archive from the TSE CDN."""
+        """Recebe os metadados e o timeout e retorna o arquivo baixado do TSE."""
 
         LOGGER.info(
             "Baixando FEFC %s diretamente da fonte oficial do TSE.",
@@ -109,7 +117,7 @@ class TSEClient:
         storage: S3Storage,
         election_years: tuple[int, ...] | None = None,
     ) -> list[dict[str, Any]]:
-        """Download the official source files and persist them in Bronze."""
+        """Recebe o storage e anos opcionais, grava os ZIPs na Bronze e retorna o manifesto."""
 
         years = election_years or self.list_election_years()
         archives = [self.scope.archive_spec_for_year(year) for year in years]

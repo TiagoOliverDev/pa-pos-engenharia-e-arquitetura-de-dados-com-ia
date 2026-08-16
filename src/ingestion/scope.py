@@ -11,7 +11,7 @@ FEFC_SOURCE_URL = "https://dadosabertos.tse.jus.br/dataset/?q=fundo+eleitoral"
 
 @dataclass(frozen=True, slots=True)
 class FEFCArchiveSpec:
-    """Metadata for one official FEFC archive published by the TSE."""
+    """Representa os metadados de um arquivo oficial do FEFC publicado pelo TSE."""
 
     election_year: int
     dataset_url: str
@@ -76,11 +76,14 @@ class FEFCSourceScope:
     archive_specs: tuple[FEFCArchiveSpec, ...] = FEFC_ARCHIVE_SPECS
 
     def contains(self, election_year: int) -> bool:
+        """Recebe um ano eleitoral e retorna se ele pertence ao escopo do MVP."""
+
         return election_year in self.election_years
 
     def archive_spec_for_year(self, election_year: int) -> FEFCArchiveSpec:
+        """Recebe um ano eleitoral e retorna os metadados de seu arquivo oficial."""
+
         for spec in self.archive_specs:
             if spec.election_year == election_year:
                 return spec
         raise ValueError(f"Ano eleitoral fora do escopo do MVP: {election_year}")
-

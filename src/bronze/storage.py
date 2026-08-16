@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover - fallback for minimal local environment
     boto3 = None
 
     class ClientError(Exception):
-        """Fallback client error when boto3 is unavailable."""
+        """Representa o erro alternativo usado quando o boto3 nao esta disponivel."""
 
 from src.config import Settings, get_settings
 from src.utils.logging import get_logger
@@ -29,37 +29,59 @@ class S3PathBuilder:
     dataset_name: str = "fundo_eleitoral"
 
     def build_prefix(self, layer: str, election_year: int) -> str:
+        """Recebe a camada e o ano eleitoral e retorna o prefixo particionado no S3."""
+
         return self.build_partitioned_prefix(layer, {"ano_eleicao": election_year})
 
     def build_partitioned_prefix(self, layer: str, partitions: dict[str, Any]) -> str:
+        """Recebe uma camada e suas particoes e retorna o prefixo no formato Hive."""
+
         partition_bits = "/".join(f"{name}={value}" for name, value in partitions.items())
         return f"{layer}/{self.dataset_name}/{partition_bits}/"
 
     def bronze_prefix(self, election_year: int) -> str:
+        """Recebe o ano eleitoral e retorna o prefixo da camada Bronze."""
+
         return self.build_prefix("bronze", election_year)
 
     def silver_prefix(self, election_year: int) -> str:
+        """Recebe o ano eleitoral e retorna o prefixo da camada Silver."""
+
         return self.build_prefix("silver", election_year)
 
     def silver_treated_prefix(self, election_year: int) -> str:
+        """Recebe o ano eleitoral e retorna o prefixo dos dados Silver tratados."""
+
         return f"{self.silver_prefix(election_year)}tratado/"
 
     def quality_prefix(self, election_year: int) -> str:
+        """Recebe o ano eleitoral e retorna o prefixo dos relatorios de qualidade."""
+
         return self.build_prefix("quality", election_year)
 
     def build_quality_report_key(self, election_year: int) -> str:
+        """Recebe o ano eleitoral e retorna a chave do relatorio de qualidade."""
+
         return f"{self.quality_prefix(election_year)}_quality_report.json"
 
     def raw_bronze_prefix(self, election_year: int) -> str:
+        """Recebe o ano eleitoral e retorna o prefixo dos arquivos brutos na Bronze."""
+
         return f"{self.build_partitioned_prefix('bronze', {'ano_eleicao': election_year})}raw/"
 
     def build_key(self, layer: str, election_year: int, filename: str) -> str:
+        """Recebe camada, ano e arquivo e retorna sua chave completa no S3."""
+
         return f"{self.build_prefix(layer, election_year)}{filename}"
 
     def build_treated_silver_key(self, election_year: int, filename: str) -> str:
+        """Recebe ano e arquivo e retorna sua chave na area Silver tratada."""
+
         return f"{self.silver_treated_prefix(election_year)}{filename}"
 
     def build_raw_key(self, election_year: int, filename: str) -> str:
+        """Recebe ano e arquivo e retorna sua chave na area Bronze bruta."""
+
         return f"{self.raw_bronze_prefix(election_year)}{filename}"
 
 
@@ -67,6 +89,8 @@ class S3Storage:
     """Pequena camada de acesso ao S3 para evitar boto3 espalhado no projeto."""
 
     def __init__(self, settings: Settings | None = None) -> None:
+        """Recebe configuracoes opcionais, inicializa o acesso S3 e nao retorna valor."""
+
         self._settings = settings or get_settings()
         self._client = None
         if boto3 is not None:
@@ -83,13 +107,19 @@ class S3Storage:
 
     @property
     def bucket_name(self) -> str:
+        """Nao recebe parametros adicionais e retorna o nome do bucket do data lake."""
+
         return self._settings.s3_bucket_name
 
     @property
     def paths(self) -> S3PathBuilder:
+        """Nao recebe parametros adicionais e retorna o construtor de caminhos S3."""
+
         return self._paths
 
     def _require_client(self) -> Any:
+        """Nao recebe parametros adicionais e retorna o cliente S3, se disponivel."""
+
         if self._client is None:
             raise RuntimeError(
                 "boto3 nao esta instalado neste ambiente; a camada S3 exige a dependencia."
@@ -97,10 +127,7 @@ class S3Storage:
         return self._client
 
     def ensure_bucket(self) -> None:
-        """Create the bucket if needed.
-
-        The method is safe for LocalStack development and also works for real AWS.
-        """
+        """Nao recebe parametros adicionais, garante o bucket e nao retorna valor."""
 
         try:
             self._require_client().head_bucket(Bucket=self.bucket_name)
@@ -116,6 +143,8 @@ class S3Storage:
         self._require_client().create_bucket(**create_kwargs)
 
     def object_exists(self, key: str) -> bool:
+        """Recebe uma chave S3 e retorna se o objeto correspondente existe."""
+
         try:
             self._require_client().head_object(Bucket=self.bucket_name, Key=key)
             return True
@@ -123,6 +152,8 @@ class S3Storage:
             return False
 
     def upload_bytes(self, key: str, payload: bytes, content_type: str = "application/octet-stream") -> None:
+        """Recebe chave, bytes e tipo MIME e envia o conteudo ao S3; nao retorna valor."""
+
         self._require_client().put_object(
             Bucket=self.bucket_name,
             Key=key,
@@ -131,12 +162,18 @@ class S3Storage:
         )
 
     def upload_text(self, key: str, content: str, content_type: str = "text/plain; charset=utf-8") -> None:
+        """Recebe chave, texto e tipo MIME e envia o conteudo ao S3; nao retorna valor."""
+
         self.upload_bytes(key, content.encode("utf-8"), content_type=content_type)
 
     def download_bytes(self, key: str) -> bytes:
+        """Recebe uma chave S3 e retorna o conteudo do objeto em bytes."""
+
         response = self._require_client().get_object(Bucket=self.bucket_name, Key=key)
         return response["Body"].read()
 
     def list_objects(self, prefix: str = "") -> list[str]:
+        """Recebe um prefixo opcional e retorna as chaves S3 encontradas."""
+
         response = self._require_client().list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)
         return [item["Key"] for item in response.get("Contents", [])]

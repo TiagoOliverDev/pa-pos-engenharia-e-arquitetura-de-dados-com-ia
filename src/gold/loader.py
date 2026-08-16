@@ -23,12 +23,14 @@ LOGGER = get_logger(__name__)
 
 @dataclass(slots=True)
 class PostgresWarehouse:
-    """Thin wrapper around SQLAlchemy for the future Gold layer."""
+    """Centraliza a conexao e as operacoes da camada Gold no PostgreSQL."""
 
     settings: Settings | None = field(default=None)
     _engine: Engine | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Recebe as configuracoes do dataclass e inicializa a engine; nao retorna valor."""
+
         if self.settings is None:
             self.settings = get_settings()
         if create_engine is not None:
@@ -39,6 +41,8 @@ class PostgresWarehouse:
 
     @property
     def engine(self) -> Engine:
+        """Nao recebe parametros adicionais e retorna a engine SQLAlchemy disponivel."""
+
         if self._engine is None:
             raise RuntimeError(
                 "SQLAlchemy nao esta instalado neste ambiente; a camada Gold exige a dependencia."
@@ -46,6 +50,8 @@ class PostgresWarehouse:
         return self._engine
 
     def healthcheck(self) -> bool:
+        """Nao recebe parametros, consulta o banco e retorna se ele esta acessivel."""
+
         with self.engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         return True
@@ -58,6 +64,8 @@ class PostgresWarehouse:
         if_exists: str = "append",
         index: bool = False,
     ) -> None:
+        """Recebe um DataFrame e opcoes, grava-o no PostgreSQL e nao retorna valor."""
+
         LOGGER.info("Carga Gold placeholder para a tabela %s.", table_name)
         dataframe.to_sql(
             table_name,
@@ -69,5 +77,7 @@ class PostgresWarehouse:
         )
 
     def execute(self, sql: str, params: dict[str, Any] | None = None) -> None:
+        """Recebe SQL e parametros opcionais e os executa em transacao; nao retorna valor."""
+
         with self.engine.begin() as connection:
             connection.execute(text(sql), params or {})

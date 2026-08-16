@@ -21,6 +21,8 @@ _MIGRATION_PATTERN = re.compile(r"^(?P<version>\d+)_(?P<name>[a-z0-9_]+)\.sql$")
 
 @dataclass(frozen=True, slots=True)
 class Migration:
+    """Representa uma migration local com versao, nome, arquivo e checksum."""
+
     version: int
     name: str
     path: Path
@@ -29,13 +31,15 @@ class Migration:
 
 @dataclass(frozen=True, slots=True)
 class MigrationStatus:
+    """Representa uma migration e informa se ela ja foi aplicada ao banco."""
+
     version: int
     name: str
     applied: bool
 
 
 def discover_migrations(migrations_dir: Path) -> tuple[Migration, ...]:
-    """Discover ordered migration files and reject duplicated versions."""
+    """Recebe o diretorio, valida os arquivos e retorna as migrations ordenadas."""
 
     migrations: list[Migration] = []
     versions: set[int] = set()
@@ -63,10 +67,14 @@ def discover_migrations(migrations_dir: Path) -> tuple[Migration, ...]:
 
 
 def _migration_dir(settings: Settings, migrations_dir: Path | None) -> Path:
+    """Recebe configuracoes e diretorio opcional e retorna o caminho efetivo."""
+
     return migrations_dir or settings.project_root / "migrations"
 
 
 def _ensure_history_table(connection) -> None:
+    """Recebe uma conexao e garante a tabela de historico; nao retorna valor."""
+
     connection.execute(
         text(
             """
@@ -85,7 +93,7 @@ def migration_status(
     settings: Settings | None = None,
     migrations_dir: Path | None = None,
 ) -> tuple[MigrationStatus, ...]:
-    """Return local migration files and whether each one was applied."""
+    """Recebe configuracoes e diretorio opcionais e retorna o status das migrations."""
 
     resolved_settings = settings or get_settings()
     migrations = discover_migrations(_migration_dir(resolved_settings, migrations_dir))
@@ -117,7 +125,7 @@ def apply_migrations(
     settings: Settings | None = None,
     migrations_dir: Path | None = None,
 ) -> tuple[Migration, ...]:
-    """Apply every pending migration in one transaction."""
+    """Recebe configuracoes e diretorio opcionais e retorna as migrations aplicadas."""
 
     resolved_settings = settings or get_settings()
     migrations = discover_migrations(_migration_dir(resolved_settings, migrations_dir))
@@ -162,6 +170,8 @@ def apply_migrations(
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Nao recebe parametros e retorna o parser dos comandos manuais de migration."""
+
     parser = argparse.ArgumentParser(description="Migrations do Data Warehouse FEFC")
     parser.add_argument("command", choices=("up", "status"))
     parser.add_argument("--migrations-dir", type=Path)
@@ -169,6 +179,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Recebe argumentos opcionais, executa o comando de migration e retorna o codigo de saida."""
+
     args = _build_parser().parse_args(argv)
     if args.command == "up":
         applied = apply_migrations(migrations_dir=args.migrations_dir)
